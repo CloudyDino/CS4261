@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paysense</title>
+
+    <link rel="stylesheet" type="text/css" href="/css/main.css">
+
+    <script defer src="/__/firebase/7.16.1/firebase-app.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-auth.js"></script>
+    <script defer src="/__/firebase/init.js"></script>
+</head>
+
+<body>
+    <h1>Payroll</h1>
+    <nav>
+        <ul>
+            <li>Learn More</li>
+            <li>Pricing</li>
+            <li><button onclick="login()">Log In</button></li>
+        </ul>
+    </nav>
+
+    <main>
+        <p>You could save time and money by switching!</p>
+    </main>
+
+    <footer>
+        <ul>
+            <li>Payroll &copy; 2020</li>
+            <li>Privacy</li>
+            <li>Terms</li>
+            <li>Licenses</li>
+            <li>Site map</li>
+        </ul>
+    </footer>
+
+    <script>
+        function login() {
+            firebase.auth()
+                .signInWithPopup(new firebase.auth.GoogleAuthProvider())
+                .then(function (result) {
+                    window.location.href = 'dashboard.html';
+                }).catch((error) => {
+                    console.error(`Error ${error.code}: ${error.message}`);
+                    alert(error.message);
+                });
+        }
+    </script>
+
+</body>
+
+</html>

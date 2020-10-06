@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paysense: Payroll</title>
+
+    <link rel="stylesheet" type="text/css" href="/css/main.css">
+
+    <script defer src="/__/firebase/7.16.1/firebase-app.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-auth.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-firestore.js"></script>
+    <script defer src="/__/firebase/init.js"></script>
+</head>
+
+<body>
+    <h1>Run Payroll</h1>
+    <nav>
+        <ul>
+            <a href="dashboard.html">
+                <li>Dashboard</li>
+            </a>
+            <a href="employees.html">
+                <li>Manage Employees</li>
+            </a>
+            <a href="payroll.html">
+                <li>Run Payroll</li>
+            </a>
+            <li>Past Payrolls</li>
+        </ul>
+    </nav>
+
+    <main>
+        <h2>Run Payroll</h2>
+
+        <p>
+            First we want to call the Firebase runPayroll function with test=TRUE. This allows us to populate the data in the table with what is going to happen.
+        </p>
+
+        <p>
+            Then, when the user hits run, we call it again with test=FALSE. This would run it officially, cause direct deposits, and redirect the user (employer) to the past payroll screens.
+        </p>
+
+        <p>TODO:</p>
+        <ul>
+            <li>Add option to select date range.</li>
+            <li>Move getPayrollInfo code to Firebase Functions.</li>
+            <li>Get hours from calendar instead of default hours (which needs to be removed once we do this)</li>
+        </ul>
+
+        <div id="payrollInformation"></div>
+        <button onclick="runPayroll()">Run</button>
+    </main>
+
+</body>
+
+<script>
+    let employeesCollectionRef;
+    document.addEventListener('DOMContentLoaded', function () {
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                employeesCollectionRef = firebase.firestore()
+                    .collection('test')
+                    .doc(user.uid)
+                    .collection('employees');
+                populatePayrollInformation();
+            }
+            else {
+                window.location.href = 'login.html';
+            }
+        });
+    });
+
+    async function populatePayrollInformation() {
+        payrollInfo = await getPayrollInfo();
+        console.log(payrollInfo.employeeInfo);
+        console.log(payrollInfo.employeeInfo[0]);
+        console.log(payrollInfo.employeeInfo.length);
+        if (payrollInfo.employeeInfo.length == 0) {
+            document.getElementById('payrollInformation').innerHTML = '<p>You have no employees</p>';
+        } else {
+            let table = '<table><tr><th>Name</th><th>Regular Hours</th><th>Regular Hourly Wage</th><th>Gross Regular Pay</th><th>Overtime Hours</th><th>Overtime Hourly Wage</th><th>Gross Overtime Pay</th><th>Gross Pay</th><th>Employee Taxes</th><th>Company Taxes</th><th>Net Pay</th></tr>';
+            payrollInfo.employeeInfo.forEach(employee => {
+                table += getPayrollTableRow(employee);
+            });
+            table += '</table>'
+
+            document.getElementById('payrollInformation').innerHTML = `${table}<p>Total Salary to Pay: ${payrollInfo.totalSalaryToPay}</p><p>Total Taxes to Pay: ${payrollInfo.totalTaxesToPay}</p><p>Total Money Required: ${payrollInfo.totalMoneyRequired}</p>`;
+        }
+    }
+
+    function getPayrollTableRow(employee) {
+        return `<tr><td>${employee.name}</td><td>${employee.regularHours}</td><td>${employee.regularHourlyWage}</td><td>${employee.grossRegularPay}</td><td>${employee.overtimeHours}</td><td>${employee.overtimeHourlyWage}</td><td>${employee.grossOvertimePay}</td><td>${employee.grossPay}</td><td>${employee.employeeTaxes}</td><td>${employee.companyTaxes}</td><td>${employee.netPay}</td></tr>`;
+    }
+
+    async function getPayrollInfo() {
+        // TODO: Should be getting this information from a Firebase function instead
+        let payrollInfo = {
+            employeeInfo: [],
+            totalTaxesToPay: 0,
+            totalSalaryToPay: 0,
+            totalMoneyRequired: 0
+        };
+
+        let querySnapshot = await employeesCollectionRef.get();
+        if (querySnapshot.size != 0) {
+            querySnapshot.forEach(employeeDocRef => {
+                const employee = employeeDocRef.data();
+                // TODO: use actual percentages for tax calculations and employee witholdings
+                const regularHours = Math.min(employee.defaultHours, 40);
+                const overtimeHours = Math.max(0, employee.defaultHours - regularHours);
+                const grossRegularPay = employee.hourlyWage * regularHours;
+                const grossOvertimePay = 1.5 * employee.hourlyWage * overtimeHours;
+                const grossPay = grossRegularPay + grossOvertimePay;
+                const employeeTaxes = 0.25 * grossPay;
+                const companyTaxes = 0.1 * grossPay;
+                const netPay = grossPay - employeeTaxes;
+
+                payrollInfo.employeeInfo.push({
+                    name: employee.name,
+                    regularHours: regularHours,
+                    regularHourlyWage: employee.hourlyWage,
+                    grossRegularPay: grossRegularPay,
+                    overtimeHours: overtimeHours,
+                    overtimeHourlyWage: 1.5 * employee.hourlyWage,
+                    grossOvertimePay: grossOvertimePay,
+                    grossPay: grossPay,
+                    employeeTaxes: employeeTaxes,
+                    companyTaxes: companyTaxes,
+                    netPay: netPay
+                });
+                payrollInfo.totalSalaryToPay += netPay;
+                payrollInfo.totalTaxesToPay += employeeTaxes + companyTaxes;
+            });
+        }
+
+        payrollInfo.totalMoneyRequired = payrollInfo.totalSalaryToPay + payrollInfo.totalTaxesToPay;
+
+        return payrollInfo;
+    }
+
+    function runPayroll() {
+        alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
+    }
+</script>
+
+</html>

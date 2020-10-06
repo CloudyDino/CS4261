@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paysense: Dashboard</title>
+
+    <link rel="stylesheet" type="text/css" href="/css/main.css">
+
+    <script defer src="/__/firebase/7.16.1/firebase-app.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-auth.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-firestore.js"></script>
+    <script defer src="/__/firebase/init.js"></script>
+</head>
+
+<body>
+    <h1>Dashboard</h1>
+    <nav>
+        <ul>
+            <a href="dashboard.html">
+                <li>Dashboard</li>
+            </a>
+            <a href="employees.html">
+                <li>Manage Employees</li>
+            </a>
+            <a href="payroll.html">
+                <li>Run Payroll</li>
+            </a>
+            <li>Past Payrolls</li>
+        </ul>
+    </nav>
+
+    <main>
+        <h2>Business Information</h2>
+        <form action="javascript:updateBusinessInformation()">
+            <label for="name">Name:</label><br>
+            <input type="text" name="name" id="name"><br>
+            <label for="ein">Employer ID Number (EIN):</label><br>
+            <input type="text" name="ein" id="ein"><br>
+            <input type="submit" value="Update">
+        </form>
+    </main>
+
+</body>
+
+<script>
+    let businessInfoDocRef;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                businessInfoDocRef = firebase.firestore()
+                    .collection('test')
+                    .doc(user.uid);
+
+                businessInfoDocRef.onSnapshot((docRef) => {
+                    const doc = docRef.data();
+                    document.getElementById('name').value = (doc == null || doc.name == null) ? '' : doc.name;
+                    document.getElementById('ein').value = (doc == null || doc.ein == null) ? '' : doc.ein;
+                });
+            } else {
+                window.location.href = 'login.html';
+            }
+        });
+    });
+
+    function updateBusinessInformation() {
+        businessInfoDocRef.set({
+            name: document.getElementById('name').value,
+            ein: document.getElementById('ein').value
+        }, { merge: true });
+    }
+</script>
+
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paysense: Manage Employees</title>
+
+    <link rel="stylesheet" type="text/css" href="/css/main.css">
+
+    <script defer src="/__/firebase/7.16.1/firebase-app.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-auth.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-firestore.js"></script>
+    <script defer src="/__/firebase/init.js"></script>
+</head>
+
+<body>
+    <h1>Manage Employees</h1>
+    <nav>
+        <ul>
+            <a href="dashboard.html">
+                <li>Dashboard</li>
+            </a>
+            <a href="employees.html">
+                <li>Manage Employees</li>
+            </a>
+            <a href="payroll.html">
+                <li>Run Payroll</li>
+            </a>
+            <li>Past Payrolls</li>
+        </ul>
+    </nav>
+
+    <main>
+        <h2>Employees</h2>
+
+        <form id="addEmployeeForm" action="javascript:addEmployee()">
+            <label for="name">Name:</label><br>
+            <input type="text" name="name" id="name"><br>
+            <label for="email">Email:</label><br>
+            <input type="email" name="email" id="email"><br>
+            <label for="defaultHours">Default Weekly Hours:</label><br>
+            <input type="number" name="defaultHours" id="defaultHours"><br>
+            <label for="hourlyWage">Hourly Wage:</label><br>
+            <input type="number" name="hourlyWage" id="hourlyWage"><br>
+            <label for="w4exemptions">W4 Exemptions:</label><br>
+            <input type="number" name="w4exemptions" id="w4exemptions"><br>
+            <input type="submit" value="Add">
+        </form>
+
+        <div id="employeesInformation"></div>
+    </main>
+
+</body>
+
+<script>
+    let employeesCollectionRef;
+
+    document.addEventListener('DOMContentLoaded', function () {
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                employeesCollectionRef = firebase.firestore()
+                    .collection('test')
+                    .doc(user.uid)
+                    .collection('employees');
+
+                populateEmployeeInformation();
+            }
+            else {
+                window.location.href = 'login.html';
+            }
+        });
+    });
+
+    function populateEmployeeInformation() {
+        employeesCollectionRef.onSnapshot((querySnapshot) => {
+            if (querySnapshot.size == 0) {
+                document.getElementById('employeesInformation').innerHTML = '<p>You have no employees</p>';
+            } else {
+                let table = '<table><tr><th></th><th>Name</th><th>Email</th><th>Default Weekly Hours</th><th>Hourly Wage</th><th>W4 Exemptions</th></tr>';
+                querySnapshot.forEach(employeeDocRef => {
+                    const employee = employeeDocRef.data();
+                    table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.defaultHours, employee.hourlyWage, employee.w4exemptions);
+                });
+                table += '</table>';
+                document.getElementById('employeesInformation').innerHTML = table;
+            }
+        });
+    }
+
+    function addEmployee() {
+        employeesCollectionRef.add({
+            name: document.getElementById('name').value,
+            email: document.getElementById('email').value,
+            defaultHours: parseFloat(document.getElementById('defaultHours').value),
+            hourlyWage: parseFloat(document.getElementById('hourlyWage').value),
+            w4exemptions: parseInt(document.getElementById('w4exemptions').value)
+        });
+    }
+
+    function getEmployeeTableRow(employeeDocRefId, name, email, defaultHours, hourlyWage, w4exemptions) {
+        return `<tr><td><button onclick="deleteEmployee('${employeeDocRefId}')">Delete</button></td><td>${name}</td><td>${email}</td><td>${defaultHours}</td><td>${hourlyWage}</td><td>${w4exemptions}</td></tr>`
+    }
+
+    function deleteEmployee(employeeDocRefId) {
+        employeesCollectionRef.doc(employeeDocRefId).delete();
+    }
+</script>
+
+</html>
