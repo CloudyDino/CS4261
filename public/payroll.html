@@ -35,11 +35,13 @@
         <h2>Run Payroll</h2>
 
         <p>
-            First we want to call the Firebase runPayroll function with test=TRUE. This allows us to populate the data in the table with what is going to happen.
+            First we want to call the Firebase runPayroll function with test=TRUE. This allows us to populate the data
+            in the table with what is going to happen.
         </p>
 
         <p>
-            Then, when the user hits run, we call it again with test=FALSE. This would run it officially, cause direct deposits, and redirect the user (employer) to the past payroll screens.
+            Then, when the user hits run, we call it again with test=FALSE. This would run it officially, cause direct
+            deposits, and redirect the user (employer) to the past payroll screens.
         </p>
 
         <p>TODO:</p>
@@ -50,6 +52,7 @@
         </ul>
 
         <div id="payrollInformation"></div>
+        <button onclick="exportTableToExcel('payrollTable')">Export Excel</button>
         <button onclick="runPayroll()">Run</button>
     </main>
 
@@ -74,24 +77,76 @@
 
     async function populatePayrollInformation() {
         payrollInfo = await getPayrollInfo();
-        console.log(payrollInfo.employeeInfo);
-        console.log(payrollInfo.employeeInfo[0]);
-        console.log(payrollInfo.employeeInfo.length);
         if (payrollInfo.employeeInfo.length == 0) {
             document.getElementById('payrollInformation').innerHTML = '<p>You have no employees</p>';
         } else {
-            let table = '<table><tr><th>Name</th><th>Regular Hours</th><th>Regular Hourly Wage</th><th>Gross Regular Pay</th><th>Overtime Hours</th><th>Overtime Hourly Wage</th><th>Gross Overtime Pay</th><th>Gross Pay</th><th>Employee Taxes</th><th>Company Taxes</th><th>Net Pay</th></tr>';
+            let table = `<table id="payrollTable">
+    <tr>
+        <th></th>
+        <th colspan="3">Regular Pay</th>
+        <th colspan="3">Overtime Pay</th>
+        <th></th>
+        <th colspan="5">Employee Taxes</th>
+        <th colspan="6">Company Taxes</th>
+        <th></th>
+    </tr>
+    <tr>
+        <th>Name</th>
+        <th>Regular Hours</th>
+        <th>Regular Hourly Wage</th>
+        <th>Gross Regular Pay</th>
+        <th>Overtime Hours</th>
+        <th>Overtime Hourly Wage</th>
+        <th>Gross Overtime Pay</th>
+        <th>Gross Pay</th>
+        <th>Federal Income Tax</th>
+        <th>Medicare Tax</th>
+        <th>Social Security Tax</th>
+        <th>State Income Tax</th>
+        <th>Total Employee Taxes</th>
+        <th>Federal Unemployment Tax</th>
+        <th>Company Medicare Tax</th>
+        <th>Company Social Security Tax</th>
+        <th>State Unemployement Tax</th>
+        <th>State Administration Assesment Tax</th>
+        <th>Total Company Taxes</th>
+        <th>Net Pay</th>
+    </tr>`;
             payrollInfo.employeeInfo.forEach(employee => {
                 table += getPayrollTableRow(employee);
             });
             table += '</table>'
 
-            document.getElementById('payrollInformation').innerHTML = `${table}<p>Total Salary to Pay: ${payrollInfo.totalSalaryToPay}</p><p>Total Taxes to Pay: ${payrollInfo.totalTaxesToPay}</p><p>Total Money Required: ${payrollInfo.totalMoneyRequired}</p>`;
+            document.getElementById('payrollInformation').innerHTML = `${table}
+            <p>Total Salary to Pay: ${payrollInfo.totalSalaryToPay.toFixed(2)}</p>
+            <p>Total Taxes to Pay: ${payrollInfo.totalTaxesToPay.toFixed(2)}</p>
+            <p>Total Money Required: ${payrollInfo.totalMoneyRequired.toFixed(2)}</p>`;
         }
     }
 
     function getPayrollTableRow(employee) {
-        return `<tr><td>${employee.name}</td><td>${employee.regularHours}</td><td>${employee.regularHourlyWage}</td><td>${employee.grossRegularPay}</td><td>${employee.overtimeHours}</td><td>${employee.overtimeHourlyWage}</td><td>${employee.grossOvertimePay}</td><td>${employee.grossPay}</td><td>${employee.employeeTaxes}</td><td>${employee.companyTaxes}</td><td>${employee.netPay}</td></tr>`;
+        return `<tr>
+    <td>${employee.name}</td>
+    <td>${employee.regularHours.toFixed(2)}</td>
+    <td>${employee.regularHourlyWage.toFixed(2)}</td>
+    <td>${employee.grossRegularPay.toFixed(2)}</td>
+    <td>${employee.overtimeHours.toFixed(2)}</td>
+    <td>${employee.overtimeHourlyWage.toFixed(2)}</td>
+    <td>${employee.grossOvertimePay.toFixed(2)}</td>
+    <td>${employee.grossPay.toFixed(2)}</td>
+    <td>${employee.federalWitholding.toFixed(2)}</td>
+    <td>${(employee.medicareEmployee + employee.medicareEmployeeAddlTax).toFixed(2)}</td>
+    <td>${employee.socialSecurtityEmployee.toFixed(2)}</td>
+    <td>${employee.stateWitholding.toFixed(2)}</td>
+    <td>${employee.totalEmployeeTaxes.toFixed(2)}</td>
+    <td>${employee.federalUnemployment.toFixed(2)}</td>
+    <td>${employee.medicareCompany.toFixed(2)}</td>
+    <td>${employee.socialSecurtityCompany.toFixed(2)}</td>
+    <td>${employee.stateUnemployment.toFixed(2)}</td>
+    <td>${employee.stateAdminAssesment.toFixed(2)}</td>
+    <td>${employee.totalCompanyTaxes.toFixed(2)}</td>
+    <td>${employee.netPay.toFixed(2)}</td>
+</tr>`;
     }
 
     async function getPayrollInfo() {
@@ -109,13 +164,34 @@
                 const employee = employeeDocRef.data();
                 // TODO: use actual percentages for tax calculations and employee witholdings
                 const regularHours = Math.min(employee.defaultHours, 40);
-                const overtimeHours = Math.max(0, employee.defaultHours - regularHours);
                 const grossRegularPay = employee.hourlyWage * regularHours;
+                const overtimeHours = Math.max(0, employee.defaultHours - regularHours);
                 const grossOvertimePay = 1.5 * employee.hourlyWage * overtimeHours;
                 const grossPay = grossRegularPay + grossOvertimePay;
-                const employeeTaxes = 0.25 * grossPay;
-                const companyTaxes = 0.1 * grossPay;
-                const netPay = grossPay - employeeTaxes;
+
+                const federalUnemployment = Math.min(7000, 0.006 * grossPay);
+                const federalWitholding = 0;
+                const medicareCompany = 0.0145 * grossPay;
+                const medicareEmployee = 0.0145 * grossPay;
+                const medicareEmployeeAddlTax = 0.009 * grossPay;
+                const socialSecurtityCompany = Math.min(137700, 0.062 * grossPay);
+                const socialSecurtityEmployee = Math.min(137700, 0.062 * grossPay);;
+                const stateWitholding = 0;
+                const stateUnemployment = Math.min(9500, 0.0264 * grossPay);
+                const stateAdminAssesment = Math.min(9500, 0.009 * grossPay);
+
+                const totalEmployeeTaxes = federalWitholding
+                    + medicareEmployee
+                    + medicareEmployeeAddlTax
+                    + socialSecurtityEmployee
+                    + stateWitholding;
+                const totalCompanyTaxes = federalUnemployment
+                    + medicareCompany
+                    + socialSecurtityCompany
+                    + stateUnemployment
+                    + stateAdminAssesment;
+
+                const netPay = grossPay - totalEmployeeTaxes;
 
                 payrollInfo.employeeInfo.push({
                     name: employee.name,
@@ -126,12 +202,22 @@
                     overtimeHourlyWage: 1.5 * employee.hourlyWage,
                     grossOvertimePay: grossOvertimePay,
                     grossPay: grossPay,
-                    employeeTaxes: employeeTaxes,
-                    companyTaxes: companyTaxes,
+                    federalUnemployment: federalUnemployment,
+                    federalWitholding: federalWitholding,
+                    medicareCompany: medicareCompany,
+                    medicareEmployee: medicareEmployee,
+                    medicareEmployeeAddlTax: medicareEmployeeAddlTax,
+                    socialSecurtityCompany: socialSecurtityCompany,
+                    socialSecurtityEmployee: socialSecurtityEmployee,
+                    stateWitholding: stateWitholding,
+                    stateUnemployment: stateUnemployment,
+                    stateAdminAssesment: stateAdminAssesment,
+                    totalEmployeeTaxes: totalEmployeeTaxes,
+                    totalCompanyTaxes: totalCompanyTaxes,
                     netPay: netPay
                 });
                 payrollInfo.totalSalaryToPay += netPay;
-                payrollInfo.totalTaxesToPay += employeeTaxes + companyTaxes;
+                payrollInfo.totalTaxesToPay += totalEmployeeTaxes + totalCompanyTaxes;
             });
         }
 
@@ -142,6 +228,37 @@
 
     function runPayroll() {
         alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
+    }
+
+    function exportTableToExcel(tableID, filename = '') {
+        var downloadLink;
+        var dataType = 'application/vnd.ms-excel';
+        var tableSelect = document.getElementById(tableID);
+        var tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
+
+        // Specify file name
+        filename = filename ? filename + '.xls' : 'excel_data.xls';
+
+        // Create download link element
+        downloadLink = document.createElement("a");
+
+        document.body.appendChild(downloadLink);
+
+        if (navigator.msSaveOrOpenBlob) {
+            var blob = new Blob(['\ufeff', tableHTML], {
+                type: dataType
+            });
+            navigator.msSaveOrOpenBlob(blob, filename);
+        } else {
+            // Create a link to the file
+            downloadLink.href = 'data:' + dataType + ', ' + tableHTML;
+
+            // Setting the file name
+            downloadLink.download = filename;
+
+            //triggering the function
+            downloadLink.click();
+        }
     }
 </script>
 
