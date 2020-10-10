@@ -158,7 +158,7 @@ export const getEmployeeHours = functions.https.onRequest((request, response) =>
     response.status(200).send(data);
     return;
   }).catch(err => {
-    console.error('Error retrieving list of calendars from account: ' + err.message); 
+    console.error('Error retrieving calendar events information for hours calculation: ' + err.message); 
     response.status(500).send(ERROR_RESPONSE); 
     return;
   });
@@ -233,7 +233,7 @@ export const finalGetEmployeeHours = functions.https.onRequest((request, respons
     response.status(200).send(data);
     return;
   }).catch(err => {
-    console.error('Error retrieving list of calendars from account: ' + err.message); 
+    console.error('Error calculating employee hours from scheduling calendar: ' + err.message); 
     response.status(500).send(ERROR_RESPONSE); 
     return;
   });
