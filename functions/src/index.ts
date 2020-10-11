@@ -1,6 +1,10 @@
 import * as functions from 'firebase-functions';
 import {google} from 'googleapis';
 import googleCredentials from './credentials.json';
+import * as admin from 'firebase-admin';
+
+admin.initializeApp();
+const db = admin.firestore();
 
 // Start writing Firebase Functions
 // https://firebase.google.com/docs/functions/typescript
@@ -217,10 +221,35 @@ async function finalCalculateEmployeeHours() {
     }
   }
   
+  //write total hours from calendar to the matching employee in cloud firebase
+  const testRef = await db.collection('test').get();
+  testRef.docs.map(doc => {
+    const employeesRef = doc.ref.collection("employees").get();
+    employeesRef.then(employeesCollection => {
+      if (!employeesCollection.empty) {
+        employeesCollection.forEach(doc => {
+          let employee = doc.ref.get();
+          employee.then(data => {
+            let name = data.get('name');
+            if (employees.has(name)) {
+              doc.ref.update({'defaultHours': employees.get(name)});
+            }
+          }).catch(err => {
+            console.error('Error getting employee name from Firebase: ' + err.message);  
+            return;
+          });
+        });
+      }
+    }).catch(err => {
+      console.error('Error getting employee collections from Firebase: ' + err.message);  
+      return;
+    })
+  });
+  
   const map: any = {};
   employees.forEach((val: number, key: string) => {
     map[key] = val;
-  })
+  });
 
   return map; 
 }
