@@ -1,5 +1,5 @@
 import * as functions from 'firebase-functions';
-import {google} from 'googleapis';
+import { google } from 'googleapis';
 import googleCredentials from './credentials.json';
 import * as admin from 'firebase-admin';
 
@@ -9,7 +9,7 @@ const db = admin.firestore();
 // Start writing Firebase Functions
 // https://firebase.google.com/docs/functions/typescript
 
-const OAuth2 = google.auth.OAuth2; 
+const OAuth2 = google.auth.OAuth2;
 const oAuth2Client = new OAuth2(
   googleCredentials.web.client_id,
   googleCredentials.web.client_secret,
@@ -26,20 +26,20 @@ const calendar = google.calendar({
 });
 
 const ERROR_RESPONSE = {
-    status: "500",
-    message: "There was an error retrieving information from your Google calendars"
+  status: "500",
+  message: "There was an error retrieving information from your Google calendars"
 };
 
 export const helloWorld = functions.https.onRequest((request, response) => {
-  functions.logger.info("Hello logs!", {structuredData: true});
+  functions.logger.info("Hello logs!", { structuredData: true });
   response.send("Hello from Firebase!");
 });
 
 async function getCalendars() {
-  const calMap = new Map(); //key: calendar name, value: calendar id
+  const calMap = new Map(); // key: calendar name, value: calendar id
   const calList = await calendar.calendarList.list();
   const calendars = calList.data.items;
-  
+
   if (calendars?.length) {
     for (let i = 0; i < calendars?.length; i++) {
       let title = calendars[i].summary;
@@ -62,7 +62,7 @@ async function getCalendars() {
     map[key] = val;
   })
   console.log(map);
-  return map; 
+  return map;
 }
 
 /*
@@ -78,8 +78,8 @@ export const getCalendarList = functions.https.onRequest((request, response) => 
     response.status(200).send(data);
     return;
   }).catch(err => {
-    console.error('Error retrieving list of calendars from account: ' + err.message); 
-    response.status(500).send(ERROR_RESPONSE); 
+    console.error('Error retrieving list of calendars from account: ' + err.message);
+    response.status(500).send(ERROR_RESPONSE);
     return;
   });
 });
@@ -93,18 +93,18 @@ DO NOT USE
     *including recurring events, which employee scheduling events most likely would be
 */
 async function calculateEmployeeHours(calendarId: string) {
-  const employees = new Map(); //key: employee name, value: total scheduled hours
+  const employees = new Map(); // key: employee name, value: total scheduled hours
 
   //get all events from a specific calendar
   const calendarEvents = await calendar.events.list({
     calendarId: calendarId,
-    timeMin: "2020-10-01T00:00:00Z", //TODO: someway for user to select time period
-    timeMax: "2020-10-31T00:00:00Z", 
+    timeMin: "2020-10-01T00:00:00Z", // TODO: someway for user to select time period
+    timeMax: "2020-10-31T00:00:00Z",
     singleEvents: true
   });
   const employeeEvents = calendarEvents.data.items;
   console.log("got items");
-  
+
   if (employeeEvents?.length) {
     for (let i = 0; i < employeeEvents.length; i++) {
       let name = employeeEvents[i].summary;
@@ -112,14 +112,14 @@ async function calculateEmployeeHours(calendarId: string) {
       let check = null;
       let endString = employeeEvents[i].end?.dateTime;
       let startString = employeeEvents[i].start?.dateTime;
-      if (endString == check || startString == check) { 
-        //checks if endString or startString is undefined or null, can't cast to Date obj otherwise
-        employees.set(name, -1); 
-        //-1 indicates the times of event was retrieved in unusable format such as being null or undefined
+      if (endString == check || startString == check) {
+        // checks if endString or startString is undefined or null, can't cast to Date obj otherwise
+        employees.set(name, -1);
+        // -1 indicates the times of event was retrieved in unusable format such as being null or undefined
       } else {
         let end = new Date(endString).getHours();
         let start = new Date(startString).getHours();
-        let hours = end - start; 
+        let hours = end - start;
         console.log(name + ": " + hours);
 
         if (employees.has(name)) {
@@ -131,14 +131,14 @@ async function calculateEmployeeHours(calendarId: string) {
       }
     }
   }
-  
+
   const map: any = {};
   employees.forEach((val: number, key: string) => {
     map[key] = val;
   })
 
   console.log(map);
-  return map; 
+  return map;
 }
 
 /*
@@ -155,15 +155,15 @@ Can't figure out way to pass in calendarId from Work Schedule:
 Would like to have the calendarId of the user selected scheduling calendar passed in 
 */
 export const getEmployeeHours = functions.https.onRequest((request, response) => {
-  //TODO pass in user selected calendar's id 
-  let calendarId = ""; 
-  //let calendarId = 'urgn9stkpplvjatha9mg6fere4@group.calendar.google.com';
+  // TODO: pass in user selected calendar's id 
+  let calendarId = "";
+  // let calendarId = 'urgn9stkpplvjatha9mg6fere4@group.calendar.google.com';
   calculateEmployeeHours(calendarId).then(data => {
     response.status(200).send(data);
     return;
   }).catch(err => {
-    console.error('Error retrieving calendar events information for hours calculation: ' + err.message); 
-    response.status(500).send(ERROR_RESPONSE); 
+    console.error('Error retrieving calendar events information for hours calculation: ' + err.message);
+    response.status(500).send(ERROR_RESPONSE);
     return;
   });
 });
@@ -172,10 +172,10 @@ export const getEmployeeHours = functions.https.onRequest((request, response) =>
 combines getCalendars() and calculateEmployeeHours()
 */
 async function finalCalculateEmployeeHours() {
-  const calMap = new Map(); //key: calendar name, value: calendar id
+  const calMap = new Map(); // key: calendar name, value: calendar id
   const calList = await calendar.calendarList.list();
   const calendars = calList.data.items;
-  
+
   if (calendars?.length) {
     for (let i = 0; i < calendars?.length; i++) {
       let title = calendars[i].summary;
@@ -184,17 +184,17 @@ async function finalCalculateEmployeeHours() {
     }
   }
 
-  const employees = new Map(); //key: employee name, value: total scheduled hours
+  const employees = new Map(); // key: employee name, value: total scheduled hours
 
-  //get all events from a specific calendar
+  // get all events from a specific calendar
   const calendarEvents = await calendar.events.list({
     calendarId: calMap.get('Work Schedule'),
-    timeMin: "2020-10-01T00:00:00Z", //TODO: some way for user to select time period
-    timeMax: "2020-10-31T00:00:00Z", 
+    timeMin: "2020-10-01T00:00:00Z", // TODO: some way for user to select time period
+    timeMax: "2020-10-31T00:00:00Z",
     singleEvents: true
   });
   const employeeEvents = calendarEvents.data.items;
-  
+
   if (employeeEvents?.length) {
     for (let i = 0; i < employeeEvents.length; i++) {
       let name = employeeEvents[i].summary;
@@ -202,14 +202,14 @@ async function finalCalculateEmployeeHours() {
       let check = null;
       let endString = employeeEvents[i].end?.dateTime;
       let startString = employeeEvents[i].start?.dateTime;
-      if (endString == check || startString == check) { 
-        //checks if endString or startString is undefined or null, can't cast to Date obj otherwise
-        employees.set(name, -1); 
-        //-1 indicates the times of event was retrieved in unusable format such as being null or undefined
+      if (endString == check || startString == check) {
+        // checks if endString or startString is undefined or null, can't cast to Date obj otherwise
+        employees.set(name, -1);
+        // -1 indicates the times of event was retrieved in unusable format such as being null or undefined
       } else {
         let end = new Date(endString).getHours();
         let start = new Date(startString).getHours();
-        let hours = end - start; 
+        let hours = end - start;
 
         if (employees.has(name)) {
           let totalHours = employees.get(name) + hours;
@@ -220,8 +220,8 @@ async function finalCalculateEmployeeHours() {
       }
     }
   }
-  
-  //write total hours from calendar to the matching employee in cloud firebase
+
+  // write total hours from calendar to the matching employee in cloud firebase
   const testRef = await db.collection('test').get();
   testRef.docs.map(doc => {
     const employeesRef = doc.ref.collection("employees").get();
@@ -232,38 +232,38 @@ async function finalCalculateEmployeeHours() {
           employee.then(data => {
             let name = data.get('name');
             if (employees.has(name)) {
-              doc.ref.update({'defaultHours': employees.get(name)});
+              doc.ref.update({ 'defaultHours': employees.get(name) });
             }
           }).catch(err => {
-            console.error('Error getting employee name from Firebase: ' + err.message);  
+            console.error('Error getting employee name from Firebase: ' + err.message);
             return;
           });
         });
       }
     }).catch(err => {
-      console.error('Error getting employee collections from Firebase: ' + err.message);  
+      console.error('Error getting employee collections from Firebase: ' + err.message);
       return;
     })
   });
-  
+
   const map: any = {};
   employees.forEach((val: number, key: string) => {
     map[key] = val;
   });
 
-  return map; 
+  return map;
 }
 
-/*USE THIS FUNCTION
-returns data containing map of key = employee name, value = total hours worked this month
-*/
+/* USE THIS FUNCTION
+ * returns data containing map of key = employee name, value = total hours worked this month
+ */
 export const finalGetEmployeeHours = functions.https.onRequest((request, response) => {
   finalCalculateEmployeeHours().then(data => {
     response.status(200).send(data);
     return;
   }).catch(err => {
-    console.error('Error calculating employee hours from scheduling calendar: ' + err.message); 
-    response.status(500).send(ERROR_RESPONSE); 
+    console.error('Error calculating employee hours from scheduling calendar: ' + err.message);
+    response.status(500).send(ERROR_RESPONSE);
     return;
   });
 });
