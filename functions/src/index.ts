@@ -1,7 +1,10 @@
+import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
+import { CallableContext } from 'firebase-functions/lib/providers/https';
 import { google } from 'googleapis';
 import googleCredentials from './credentials.json';
-import * as admin from 'firebase-admin';
+
+import { PayrollInfo } from "./objects";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -25,249 +28,132 @@ const calendar = google.calendar({
   auth: oAuth2Client
 });
 
-const ERROR_RESPONSE = {
-  status: "500",
-  message: "There was an error retrieving information from your Google calendars"
-};
-
-export const helloWorld = functions.https.onRequest((request, response) => {
-  functions.logger.info("Hello logs!", { structuredData: true });
-  response.send("Hello from Firebase!");
-});
-
-async function getCalendars() {
-  const calMap = new Map(); // key: calendar name, value: calendar id
+async function getCalendarId(calendarName: string): Promise<string> {
   const calList = await calendar.calendarList.list();
   const calendars = calList.data.items;
 
   if (calendars?.length) {
     for (let i = 0; i < calendars?.length; i++) {
-      let title = calendars[i].summary;
-      let id = calendars[i].id;
-      calMap.set(title, id);
+      if (calendars[i].summary == calendarName && typeof calendars[i].id === 'string') {
+        return calendars[i].id!!;
+      }
     }
   }
 
-  /*
-  Not very familiar with TypeScript so doing it in this weird way.
-
-  If I used calMap as a regular {}, title would not be allowed as a key because 
-  it could be null or undefined so I used a Map to get around that.
-
-  However, the Map type doesn't show up in the response so had to convert it back
-  to array of key-value pairs.
-  */
-  const map: any = {};
-  calMap.forEach((val: string, key: string) => {
-    map[key] = val;
-  })
-  console.log(map);
-  return map;
+  return 'primary';
 }
 
-/*
-returns list of all calendars associated with account in the form of a map with
-key = calendar name and value = calendar id. 
+async function getEmployeeHours(startDate: Date, endDate: Date): Promise<Map<string, number>> {
+  const hoursPerEmployee = new Map();
 
-We could display the calendar names in a dropdown list in Payroll screen, when user
-selects the calendar they want, we use the corresponding id to grab all the events
-on the calendar (employee names)
-*/
-export const getCalendarList = functions.https.onRequest((request, response) => {
-  getCalendars().then(data => {
-    response.status(200).send(data);
-    return;
-  }).catch(err => {
-    console.error('Error retrieving list of calendars from account: ' + err.message);
-    response.status(500).send(ERROR_RESPONSE);
-    return;
-  });
-});
-
-/*
-DO NOT USE
-
--gets all events belonging to the calendar specified by the id
--for every event, calculate duration and add to the hours of the event's name key in map if it exists
--returns map (key = name of event, value = total hours of event(s*)) 
-    *including recurring events, which employee scheduling events most likely would be
-*/
-async function calculateEmployeeHours(calendarId: string) {
-  const employees = new Map(); // key: employee name, value: total scheduled hours
-
-  //get all events from a specific calendar
+  const calendarId = await getCalendarId('Work Schedule')
   const calendarEvents = await calendar.events.list({
     calendarId: calendarId,
-    timeMin: "2020-10-01T00:00:00Z", // TODO: someway for user to select time period
-    timeMax: "2020-10-31T00:00:00Z",
-    singleEvents: true
-  });
-  const employeeEvents = calendarEvents.data.items;
-  console.log("got items");
-
-  if (employeeEvents?.length) {
-    for (let i = 0; i < employeeEvents.length; i++) {
-      let name = employeeEvents[i].summary;
-
-      let check = null;
-      let endString = employeeEvents[i].end?.dateTime;
-      let startString = employeeEvents[i].start?.dateTime;
-      if (endString == check || startString == check) {
-        // checks if endString or startString is undefined or null, can't cast to Date obj otherwise
-        employees.set(name, -1);
-        // -1 indicates the times of event was retrieved in unusable format such as being null or undefined
-      } else {
-        let end = new Date(endString).getHours();
-        let start = new Date(startString).getHours();
-        let hours = end - start;
-        console.log(name + ": " + hours);
-
-        if (employees.has(name)) {
-          let totalHours = employees.get(name) + hours;
-          employees.set(name, totalHours);
-        } else {
-          employees.set(name, hours);
-        }
-      }
-    }
-  }
-
-  const map: any = {};
-  employees.forEach((val: number, key: string) => {
-    map[key] = val;
-  })
-
-  console.log(map);
-  return map;
-}
-
-/*
-DO NOT USE THIS FUNCTION
-
-Can't figure out way to pass in calendarId from Work Schedule:
-  - Using getCalendars() to use the map results in error when I try to read the data
-    from the Promise. 
-  - Pasting the code from getCalendars directly into here to get the id would require making this an async function and
-    I'm not sure if we want to do that. 
-  - Making calMap a const variable outside the getCalendars function so that we can still access the values
-    after running getCalendars() doesn't work. calMaps is empty in this function while filled out in getCalendars()
-
-Would like to have the calendarId of the user selected scheduling calendar passed in 
-*/
-export const getEmployeeHours = functions.https.onRequest((request, response) => {
-  // TODO: pass in user selected calendar's id 
-  let calendarId = "";
-  // let calendarId = 'urgn9stkpplvjatha9mg6fere4@group.calendar.google.com';
-  calculateEmployeeHours(calendarId).then(data => {
-    response.status(200).send(data);
-    return;
-  }).catch(err => {
-    console.error('Error retrieving calendar events information for hours calculation: ' + err.message);
-    response.status(500).send(ERROR_RESPONSE);
-    return;
-  });
-});
-
-/*
-combines getCalendars() and calculateEmployeeHours()
-*/
-async function finalCalculateEmployeeHours() {
-  const calMap = new Map(); // key: calendar name, value: calendar id
-  const calList = await calendar.calendarList.list();
-  const calendars = calList.data.items;
-
-  if (calendars?.length) {
-    for (let i = 0; i < calendars?.length; i++) {
-      let title = calendars[i].summary;
-      let id = calendars[i].id;
-      calMap.set(title, id);
-    }
-  }
-
-  const employees = new Map(); // key: employee name, value: total scheduled hours
-
-  // get all events from a specific calendar
-  const calendarEvents = await calendar.events.list({
-    calendarId: calMap.get('Work Schedule'),
-    timeMin: "2020-10-01T00:00:00Z", // TODO: some way for user to select time period
-    timeMax: "2020-10-31T00:00:00Z",
+    timeMin: startDate.toDateString(),
+    timeMax: endDate.toDateString(),
     singleEvents: true
   });
   const employeeEvents = calendarEvents.data.items;
 
   if (employeeEvents?.length) {
     for (let i = 0; i < employeeEvents.length; i++) {
-      let name = employeeEvents[i].summary;
+      const name = employeeEvents[i].summary;
+      const endString = employeeEvents[i].end?.dateTime;
+      const startString = employeeEvents[i].start?.dateTime;
+      if (endString && startString) {
+        const end = new Date(endString);
+        const start = new Date(startString);
+        const seconds = (end.getTime() - start.getTime()) / 1000;
+        const hours = seconds / (60 * 60);
 
-      let check = null;
-      let endString = employeeEvents[i].end?.dateTime;
-      let startString = employeeEvents[i].start?.dateTime;
-      if (endString == check || startString == check) {
-        // checks if endString or startString is undefined or null, can't cast to Date obj otherwise
-        employees.set(name, -1);
-        // -1 indicates the times of event was retrieved in unusable format such as being null or undefined
-      } else {
-        let end = new Date(endString).getHours();
-        let start = new Date(startString).getHours();
-        let hours = end - start;
-
-        if (employees.has(name)) {
-          let totalHours = employees.get(name) + hours;
-          employees.set(name, totalHours);
+        if (hoursPerEmployee.has(name)) {
+          hoursPerEmployee.set(name, hoursPerEmployee.get(name) + hours);
         } else {
-          employees.set(name, hours);
+          hoursPerEmployee.set(name, hours);
         }
       }
     }
   }
-
-  // write total hours from calendar to the matching employee in cloud firebase
-  const testRef = await db.collection('test').get();
-  testRef.docs.map(doc => {
-    const employeesRef = doc.ref.collection("employees").get();
-    employeesRef.then(employeesCollection => {
-      if (!employeesCollection.empty) {
-        employeesCollection.forEach(doc => {
-          let employee = doc.ref.get();
-          employee.then(data => {
-            let name = data.get('name');
-            if (employees.has(name)) {
-              doc.ref.update({ 'defaultHours': employees.get(name) });
-            }
-          }).catch(err => {
-            console.error('Error getting employee name from Firebase: ' + err.message);
-            return;
-          });
-        });
-      }
-    }).catch(err => {
-      console.error('Error getting employee collections from Firebase: ' + err.message);
-      return;
-    })
-  });
-
-  const map: any = {};
-  employees.forEach((val: number, key: string) => {
-    map[key] = val;
-  });
-
-  return map;
+  return hoursPerEmployee;
 }
 
-/* USE THIS FUNCTION
- * returns data containing map of key = employee name, value = total hours worked this month
- */
-export const finalGetEmployeeHours = functions.https.onRequest((request, response) => {
-  finalCalculateEmployeeHours().then(data => {
-    response.status(200).send(data);
-    return;
-  }).catch(err => {
-    console.error('Error calculating employee hours from scheduling calendar: ' + err.message);
-    response.status(500).send(ERROR_RESPONSE);
-    return;
-  });
+export const getPayrollInfo = functions.https.onCall(async (data: any, context: CallableContext) => {
+  // Authentication / user information is automatically added to the request.
+  const uid = context.auth!!.uid;
+
+  // Data passed in by client
+  const startDate = data.startDate;
+  const endDate = data.endDate;
+
+  const hoursPerEmployee = false ? await getEmployeeHours(startDate, endDate) : new Map<string, number>();
+
+  const payrollInfo = new PayrollInfo();
+
+  const querySnapshot = await db.collection('test').doc(uid).collection('employees').get();
+  if (querySnapshot.size != 0) {
+    querySnapshot.forEach(employeeDocRef => {
+      const employee = employeeDocRef.data();
+
+      const totalHours = hoursPerEmployee.get(employee.name) || 0;
+      const regularHours = Math.min(totalHours, 40);
+      const grossRegularPay = employee.hourlyWage * regularHours;
+      const overtimeHours = Math.max(0, totalHours - regularHours);
+      const grossOvertimePay = 1.5 * employee.hourlyWage * overtimeHours;
+      const grossPay = grossRegularPay + grossOvertimePay;
+
+      const federalUnemployment = Math.min(7000, 0.006 * grossPay);
+      const federalWitholding = 0;  // TODO
+      const medicareCompany = 0.0145 * grossPay;
+      const medicareEmployee = 0.0145 * grossPay;
+      const medicareEmployeeAddlTax = 0.009 * grossPay;
+      const socialSecurtityCompany = Math.min(137700, 0.062 * grossPay);
+      const socialSecurtityEmployee = Math.min(137700, 0.062 * grossPay);;
+      const stateWitholding = 0;  // TODO
+      const stateUnemployment = Math.min(9500, 0.0264 * grossPay);
+      const stateAdminAssesment = Math.min(9500, 0.009 * grossPay);
+
+      const totalEmployeeTaxes = federalWitholding
+        + medicareEmployee
+        + medicareEmployeeAddlTax
+        + socialSecurtityEmployee
+        + stateWitholding;
+      const totalCompanyTaxes = federalUnemployment
+        + medicareCompany
+        + socialSecurtityCompany
+        + stateUnemployment
+        + stateAdminAssesment;
+
+      const netPay = grossPay - totalEmployeeTaxes;
+
+      payrollInfo.employeeInfo.push({
+        name: employee.name,
+        regularHours: regularHours,
+        regularHourlyWage: employee.hourlyWage,
+        grossRegularPay: grossRegularPay,
+        overtimeHours: overtimeHours,
+        overtimeHourlyWage: 1.5 * employee.hourlyWage,
+        grossOvertimePay: grossOvertimePay,
+        grossPay: grossPay,
+        federalUnemployment: federalUnemployment,
+        federalWitholding: federalWitholding,
+        medicareCompany: medicareCompany,
+        medicareEmployee: medicareEmployee,
+        medicareEmployeeAddlTax: medicareEmployeeAddlTax,
+        socialSecurtityCompany: socialSecurtityCompany,
+        socialSecurtityEmployee: socialSecurtityEmployee,
+        stateWitholding: stateWitholding,
+        stateUnemployment: stateUnemployment,
+        stateAdminAssesment: stateAdminAssesment,
+        totalEmployeeTaxes: totalEmployeeTaxes,
+        totalCompanyTaxes: totalCompanyTaxes,
+        netPay: netPay
+      });
+      payrollInfo.totalSalaryToPay += netPay;
+      payrollInfo.totalTaxesToPay += totalEmployeeTaxes + totalCompanyTaxes;
+    });
+  }
+
+  payrollInfo.totalMoneyRequired = payrollInfo.totalSalaryToPay + payrollInfo.totalTaxesToPay;
+
+  return payrollInfo;
 });
-
-
-
-

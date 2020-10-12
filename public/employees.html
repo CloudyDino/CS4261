@@ -39,8 +39,6 @@
             <input type="text" name="name" id="name"><br>
             <label for="email">Email:</label><br>
             <input type="email" name="email" id="email"><br>
-            <label for="defaultHours">Default Weekly Hours:</label><br>
-            <input type="number" name="defaultHours" id="defaultHours"><br>
             <label for="hourlyWage">Hourly Wage:</label><br>
             <input type="number" name="hourlyWage" id="hourlyWage"><br>
             <label for="w4exemptions">W4 Exemptions:</label><br>
@@ -77,7 +75,14 @@
             if (querySnapshot.size == 0) {
                 document.getElementById('employeesInformation').innerHTML = '<p>You have no employees</p>';
             } else {
-                let table = '<table><tr><th></th><th>Name</th><th>Email</th><th>Default Weekly Hours</th><th>Hourly Wage</th><th>W4 Exemptions</th></tr>';
+                let table = `<table>
+                                <tr>
+                                    <th></th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Hourly Wage</th>
+                                    <th>W4 Exemptions</th>
+                                </tr>`;
                 querySnapshot.forEach(employeeDocRef => {
                     const employee = employeeDocRef.data();
                     table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.defaultHours, employee.hourlyWage, employee.w4exemptions);
@@ -92,14 +97,19 @@
         employeesCollectionRef.add({
             name: document.getElementById('name').value,
             email: document.getElementById('email').value,
-            defaultHours: parseFloat(document.getElementById('defaultHours').value),
             hourlyWage: parseFloat(document.getElementById('hourlyWage').value),
             w4exemptions: parseInt(document.getElementById('w4exemptions').value)
         });
     }
 
-    function getEmployeeTableRow(employeeDocRefId, name, email, defaultHours, hourlyWage, w4exemptions) {
-        return `<tr><td><button onclick="deleteEmployee('${employeeDocRefId}')">Delete</button></td><td>${name}</td><td>${email}</td><td>${defaultHours}</td><td>${hourlyWage}</td><td>${w4exemptions}</td></tr>`
+    function getEmployeeTableRow(employeeDocRefId, name, email, hourlyWage, w4exemptions) {
+        return `<tr>
+                    <td><button onclick="deleteEmployee('${employeeDocRefId}')">Delete</button></td>
+                    <td>${name}</td>
+                    <td>${email}</td>
+                    <td>${hourlyWage}</td>
+                    <td>${w4exemptions}</td>
+                </tr>`;
     }
 
     function deleteEmployee(employeeDocRefId) {
