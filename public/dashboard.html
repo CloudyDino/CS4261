@@ -18,16 +18,17 @@
     <h1>Dashboard</h1>
     <nav>
         <ul>
-            <a href="dashboard.html">
+            <a href="/dashboard.html">
                 <li>Dashboard</li>
             </a>
-            <a href="employees.html">
+            <a href="/employees.html">
                 <li>Manage Employees</li>
             </a>
-            <a href="payroll.html">
+            <a href="/payroll.html">
                 <li>Run Payroll</li>
             </a>
             <li>Past Payrolls</li>
+            <li><button onclick="logout()">Log Out</button></li>
         </ul>
     </nav>
 
@@ -60,7 +61,7 @@
                     document.getElementById('ein').value = (doc == null || doc.ein == null) ? '' : doc.ein;
                 });
             } else {
-                window.location.href = 'login.html';
+                window.location.href = 'index.html';
             }
         });
     });
@@ -70,6 +71,17 @@
             name: document.getElementById('name').value,
             ein: document.getElementById('ein').value
         }, { merge: true });
+    }
+
+    function logout() {
+        firebase.auth().signOut()
+            .then(function () {
+                window.location.href = 'index.html';
+            })
+            .catch(error => {
+                console.log(error);
+                alert("Logout was unsuccessful");
+            });
     }
 </script>
 

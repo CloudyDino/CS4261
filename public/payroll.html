@@ -19,13 +19,13 @@
     <h1>Run Payroll</h1>
     <nav>
         <ul>
-            <a href="dashboard.html">
+            <a href="/dashboard.html">
                 <li>Dashboard</li>
             </a>
-            <a href="employees.html">
+            <a href="/employees.html">
                 <li>Manage Employees</li>
             </a>
-            <a href="payroll.html">
+            <a href="/payroll.html">
                 <li>Run Payroll</li>
             </a>
             <li>Past Payrolls</li>
@@ -36,13 +36,7 @@
         <h2>Run Payroll</h2>
 
         <p>
-            First we want to call the Firebase runPayroll function with test=TRUE. This allows us to populate the data
-            in the table with what is going to happen.
-        </p>
-
-        <p>
-            Then, when the user hits run, we call it again with test=FALSE. This would run it officially, cause direct
-            deposits, and redirect the user (employer) to the past payroll screens.
+            Make sure that your employees' hours are located as events in your <a href="calendar.google.com">Google Calendar</a>. Make sure you have a calendar named as "Work Schedule" (without the quotes) or create one <a href="https://calendar.google.com/calendar/u/0/r/settings/createcalendar">here</a>. Finally, make sure that each event uses the full name of the employee.
         </p>
 
         <form id="payrollDateSelector" action="javascript:populatePayrollInformation()">
@@ -62,21 +56,33 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         firebase.auth().onAuthStateChanged((user) => {
-            if (!user) {
-                window.location.href = 'login.html';
+            if (user) {
+                firebase.functions().useFunctionsEmulator('http://localhost:5001');
+                const queryString = window.location.search;
+                const urlParams = new URLSearchParams(queryString);
+                const authCode = urlParams.get('code');
+                if (authCode) {
+                    firebase.functions().httpsCallable('updateGoogleApiAuthCredentials')({ authorizationCode: authCode });
+                }
+            } else {
+                window.location.href = 'index.html';
             }
         });
     });
 
-    async function getPayrollInfo(startDate, endDate) {
-        return await firebase.functions().httpsCallable('getPayrollInfo')({startDate: startDate, endDate: endDate});
+    function getPayrollInfo(startDate, endDate) {
+        return firebase.functions().httpsCallable('getPayrollInfo')({ startDate: startDate.toJSON(), endDate: endDate.toJSON() });
     }
 
     async function populatePayrollInformation() {
-        const startDate = document.getElementById('payrollStartDate').value;
-        const endDate = document.getElementById('payrollEndDate').value;
-        const payrollInfo = await getPayrollInfo(startDate, endDate);
-        if (!payrollInfo.employeeInfo || payrollInfo.employeeInfo.length == 0) {
+        const startDate = new Date(document.getElementById('payrollStartDate').value);
+        const endDate = new Date(document.getElementById('payrollEndDate').value);
+        const payrollInfo = (await getPayrollInfo(startDate, endDate)).data;
+        console.log(payrollInfo);
+        if (payrollInfo.authUrl) {
+            console.log("redirecting");
+            window.location.href = payrollInfo.authUrl;
+        } else if (!payrollInfo.employeeInfo || payrollInfo.employeeInfo.length == 0) {
             document.getElementById('payrollInformation').innerHTML = '<p>You have no employees</p>';
         } else {
             let table = `<table id="payrollTable">
