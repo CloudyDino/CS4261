@@ -36,7 +36,7 @@
         <h2>Run Payroll</h2>
 
         <p>
-            Make sure that your employees' hours are located as events in your <a href="calendar.google.com">Google Calendar</a>. Make sure you have a calendar named as "Work Schedule" (without the quotes) or create one <a href="https://calendar.google.com/calendar/u/0/r/settings/createcalendar">here</a>. Finally, make sure that each event uses the full name of the employee.
+            Make sure that your employees' hours are located as events in your <a href="https://calendar.google.com/calendar/" target="_blank">Google Calendar</a>. Make sure you have a calendar named as "Work Schedule" (without the quotes) or create one <a href="https://calendar.google.com/calendar/u/0/r/settings/createcalendar" target="_blank">here</a>. Finally, make sure that each event uses the full name of the employee.
         </p>
 
         <form id="payrollDateSelector" action="javascript:populatePayrollInformation()">
@@ -57,7 +57,6 @@
     document.addEventListener('DOMContentLoaded', function () {
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
-                firebase.functions().useFunctionsEmulator('http://localhost:5001');
                 const queryString = window.location.search;
                 const urlParams = new URLSearchParams(queryString);
                 const authCode = urlParams.get('code');
