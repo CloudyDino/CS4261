@@ -21,6 +21,9 @@
             <a href="/dashboard.html">
                 <li>Dashboard</li>
             </a>
+            <a href="https://calendar.google.com/calendar/" target="_blank">
+                <li>Calendar</li>
+            </a>
             <a href="/employees.html">
                 <li>Manage Employees</li>
             </a>
@@ -40,10 +43,10 @@
             <label for="email">Email:</label><br>
             <input type="email" name="email" id="email"><br>
             <label for="hourlyWage">Hourly Wage:</label><br>
-            <input type="number" name="hourlyWage" id="hourlyWage"><br>
+            <input type="number" name="hourlyWage" id="hourlyWage" min="0" step="0.01"><br>
             <label for="w4exemptions">W4 Exemptions:</label><br>
             <input type="number" name="w4exemptions" id="w4exemptions"><br>
-            <input type="submit" value="Add">
+            <input type="submit" value="Add Employee">
         </form>
 
         <div id="employeesInformation"></div>
@@ -85,7 +88,7 @@
                                 </tr>`;
                 querySnapshot.forEach(employeeDocRef => {
                     const employee = employeeDocRef.data();
-                    table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.defaultHours, employee.hourlyWage, employee.w4exemptions);
+                    table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.hourlyWage, employee.w4exemptions);
                 });
                 table += '</table>';
                 document.getElementById('employeesInformation').innerHTML = table;
@@ -100,6 +103,7 @@
             hourlyWage: parseFloat(document.getElementById('hourlyWage').value),
             w4exemptions: parseInt(document.getElementById('w4exemptions').value)
         });
+        document.getElementById('addEmployeeForm').reset();
     }
 
     function getEmployeeTableRow(employeeDocRefId, name, email, hourlyWage, w4exemptions) {

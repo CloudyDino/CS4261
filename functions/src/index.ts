@@ -146,7 +146,7 @@ export const updateGoogleApiAuthCredentials = functions.https.onCall(async (data
   }
   try {
     const { tokens } = await oAuth2Client.getToken(authorizationCode);
-    await db.collection('test').doc(uid).update({
+    await db.collection('test').doc(uid).set({
       googleApiAuthCredentials: tokens
     });
   } catch (error) {
