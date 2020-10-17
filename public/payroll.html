@@ -39,14 +39,22 @@
         <h2>Run Payroll</h2>
 
         <p>
-            Make sure that your employees' hours are located as events in your <a href="https://calendar.google.com/calendar/" target="_blank">Google Calendar</a>. Make sure you have a calendar named as "Work Schedule" (without the quotes) or create one <a href="https://calendar.google.com/calendar/u/0/r/settings/createcalendar" target="_blank">here</a>. Finally, make sure that each event uses the full name of the employee.
+            Make sure that your employees' hours are located as events in your <a
+                href="https://calendar.google.com/calendar/" target="_blank">Google Calendar</a>. Make sure you have a
+            calendar named as "Work Schedule" (without the quotes) or create one <a
+                href="https://calendar.google.com/calendar/u/0/r/settings/createcalendar" target="_blank">here</a>.
+            Finally, make sure that each event uses the full name of the employee.
         </p>
 
         <form id="payrollDateSelector" action="javascript:populatePayrollInformation()">
+            <!-- <label for="calendarDropdown">Calendar</label>
+            <select id="calendarDropdown" name="calendarDropdown" required>
+                <option value="calendarIdHere">Calendar Name Here</option>
+            </select> -->
             <label for="payrollStartDate">Start Date</label>
-            <input type="date" id="payrollStartDate" name="Start Date">
+            <input type="date" id="payrollStartDate" name="Start Date" required>
             <label for="payrollEndDate">End Date</label>
-            <input type="date" id="payrollEndDate" name="End Date">
+            <input type="date" id="payrollEndDate" name="End Date" required>
             <input type="submit" value="Generate">
         </form>
         <div id="payrollInformation"></div>
@@ -73,6 +81,7 @@
     });
 
     function getPayrollInfo(startDate, endDate) {
+        endDate.setDate(endDate.getDate() + 1);
         return firebase.functions().httpsCallable('getPayrollInfo')({ startDate: startDate.toJSON(), endDate: endDate.toJSON() });
     }
 
@@ -80,9 +89,7 @@
         const startDate = new Date(document.getElementById('payrollStartDate').value);
         const endDate = new Date(document.getElementById('payrollEndDate').value);
         const payrollInfo = (await getPayrollInfo(startDate, endDate)).data;
-        console.log(payrollInfo);
         if (payrollInfo.authUrl) {
-            console.log("redirecting");
             window.location.href = payrollInfo.authUrl;
         } else if (!payrollInfo.employeeInfo || payrollInfo.employeeInfo.length == 0) {
             document.getElementById('payrollInformation').innerHTML = '<p>You have no employees</p>';

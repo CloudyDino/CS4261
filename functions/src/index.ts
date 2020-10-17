@@ -4,7 +4,7 @@ import { CallableContext } from 'firebase-functions/lib/providers/https';
 import { google, calendar_v3, Auth } from 'googleapis';
 import googleCredentials from './credentials.json';
 
-import { EmployeeInfo, PayrollInfo } from "./objects";
+import { EmployeeInfo, PayrollInfo, W4Data } from "./objects";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -32,6 +32,48 @@ async function getCalendarApi(credentials: Auth.Credentials) {
     auth: oAuth2Client
   });
 }
+
+// Returns a map of calendar ids to calendar names
+// async function getAllCalendars(calendarApi: calendar_v3.Calendar): Promise<Map<string, string>> {
+//   const calList = await calendarApi.calendarList.list();
+//   const calendars = calList.data.items;
+//   const calendarIdToName = new Map<string, string>();
+
+//   if (calendars) {
+//     for (const calendar of calendars) {
+//       if (typeof calendar.summary === 'string' && calendar.id === 'string') {
+//         calendarIdToName.set(calendar.id, calendar.summary);
+//       }
+//     }
+//   }
+
+//   return calendarIdToName;
+// }
+
+// TODO: use for calendar dropdown. Also send back last used calendar so it can be the default value. also make sure to set the last used calendar in getEmployeeHours
+// export const getCalendars = functions.https.onCall(async (data: any, context: CallableContext) => {
+//   const uid = context.auth?.uid;
+//   if (typeof uid === 'undefined') {
+//     return Promise.reject();
+//   }
+
+//   try {
+
+//     const userSnapshot = await db.collection('test').doc(uid).get();
+//     const googleApiAuthCredentials = userSnapshot.data()?.googleApiAuthCredentials;
+
+//     if (!googleApiAuthCredentials) {
+//       return {
+//         authUrl: url
+//       };
+//     }
+//     return getAllCalendars(await getCalendarApi(googleApiAuthCredentials));
+//   } catch (error) {
+//     console.log(error);
+//     return Promise.reject();
+//   }
+// });
+
 
 async function getCalendarId(calendarApi: calendar_v3.Calendar, calendarName: string): Promise<string> {
   const calList = await calendarApi.calendarList.list();
@@ -82,7 +124,123 @@ async function getEmployeeHours(calendarApi: calendar_v3.Calendar, startDate: st
   return hoursPerEmployee;
 }
 
-function getEmployeePayrollInfo(employee: any, hours: number): EmployeeInfo {
+const PercentageMethodTable_OneJob_MarriedFilingJointly_2020: number[][] = [
+  [0, 11900, 0.00, 0.00, 0],
+  [11900, 31650, 0.00, 0.10, 11900],
+  [32650, 92150, 1975.00, 0.12, 31650],
+  [92150, 182950, 9235.00, 0.22, 92150],
+  [182950, 338500, 29211.00, 0.24, 182950],
+  [338500, 426600, 66543.00, 0.32, 338500],
+  [426600, 633950, 94735.00, 0.35, 426600],
+  [633950, Number.POSITIVE_INFINITY, 167307.50, 0.37, 633950]
+];
+
+const PercentageMethodTable_TwoJobs_MarriedFilingJointly_2020: number[][] = [
+  [0, 12400, 0.00, 0.00, 0],
+  [12400, 22275, 0.00, 0.10, 12400],
+  [22275, 52525, 987.50, 0.12, 22275],
+  [52525, 97925, 4617.50, 0.22, 52525],
+  [97925, 175700, 14605.50, 0.24, 97925],
+  [175700, 219750, 33271.50, 0.32, 175700],
+  [219750, 323425, 47367.50, 0.35, 219750],
+  [323425, Number.POSITIVE_INFINITY, 83653.75, 0.37, 323425]
+];
+const PercentageMethodTable_OneJob_SingleOrMarriedFilingSeparately_2020: number[][] = [
+  [0, 3800, 0.00, 0.00, 0],
+  [3800, 13675, 0.00, 0.10, 3800],
+  [13675, 43925, 987.50, 0.12, 13675],
+  [43925, 89325, 4617.50, 0.22, 43925],
+  [89325, 167100, 14605.50, 0.24, 89325],
+  [167100, 211150, 33271.50, 0.32, 167100],
+  [211150, 522200, 47367.50, 0.35, 211150],
+  [522200, Number.POSITIVE_INFINITY, 156235.00, 0.37, 522200]
+];
+const PercentageMethodTable_TwoJobs_SingleOrMarriedFilingSeparately_2020: number[][] = [
+  [0, 6200, 0.00, 0.00, 0],
+  [6200, 11138, 0.00, 0.10, 6200],
+  [11138, 26263, 493.75, 0.12, 11138],
+  [26263, 48963, 2308.75, 0.22, 26263],
+  [48963, 87850, 7302.75, 0.24, 48963],
+  [87850, 109875, 16635.75, 0.32, 87850],
+  [109875, 265400, 23683.75, 0.35, 109875],
+  [265400, Number.POSITIVE_INFINITY, 78117.50, 0.37, 265400]
+];
+const PercentageMethodTable_OneJob_HeadOfHousehold_2020: number[][] = [
+  [0, 10050, 0.00, 0.00, 0],
+  [10050, 24150, 0.00, 0.10, 10050],
+  [24150, 63750, 1410.00, 0.12, 24150],
+  [63750, 95550, 6162.00, 0.22, 63750],
+  [95550, 173350, 13158.00, 0.24, 95550],
+  [173350, 217400, 31830.00, 0.32, 173350],
+  [217400, 528450, 45926.00, 0.35, 217400],
+  [528450, Number.POSITIVE_INFINITY, 154793.50, 0.37, 528450]
+];
+const PercentageMethodTable_TwoJobs_HeadOfHousehold_2020: number[][] = [
+  [0, 9325, 0.00, 0.00, 0],
+  [9325, 16375, 0.00, 0.10, 9325],
+  [16375, 36175, 705.00, 0.12, 16375],
+  [36175, 52075, 3081.00, 0.22, 36175],
+  [52075, 90975, 6579.00, 0.24, 52075],
+  [90975, 113000, 15915.00, 0.32, 90975],
+  [113000, 268525, 22963.00, 0.35, 113000],
+  [269525, Number.POSITIVE_INFINITY, 77396.75, 0.37, 268525]
+];
+
+// Uses https://www.irs.gov/publications/p15t
+function calculateFederalWitholding(grossPay: number, days: number, w4Data: W4Data): number {
+  const payPeriods = 365.25 / days;
+  let adjustedAnnualWageAmount = grossPay * payPeriods;
+  adjustedAnnualWageAmount += w4Data.step4a;
+  adjustedAnnualWageAmount -= w4Data.step4b;
+  if (!w4Data.twoJobs) {
+    if (w4Data.filingStatus === 'marriedFilingJointly') {
+      adjustedAnnualWageAmount -= 12900;
+    } else {
+      adjustedAnnualWageAmount -= 8600;
+    }
+  }
+  adjustedAnnualWageAmount = Math.max(0, adjustedAnnualWageAmount);
+
+  let table: number[][];
+  if (w4Data.filingStatus === 'marriedFilingJointly') {
+    if (w4Data.twoJobs) {
+      table = PercentageMethodTable_TwoJobs_MarriedFilingJointly_2020;
+    } else {
+      table = PercentageMethodTable_OneJob_MarriedFilingJointly_2020;
+    }
+  } else if (w4Data.filingStatus === 'headOfHousehold') {
+    if (w4Data.twoJobs) {
+      table = PercentageMethodTable_TwoJobs_HeadOfHousehold_2020;
+    } else {
+      table = PercentageMethodTable_OneJob_HeadOfHousehold_2020;
+    }
+  } else {  // 'single' or 'marriedFilingSeparately'
+    if (w4Data.twoJobs) {
+      table = PercentageMethodTable_TwoJobs_SingleOrMarriedFilingSeparately_2020;
+    } else {
+      table = PercentageMethodTable_OneJob_SingleOrMarriedFilingSeparately_2020;
+    }
+  }
+  let row: number;
+  for (row = 0; row < table.length - 1; row++) {
+    if (adjustedAnnualWageAmount < table[row][1]) {
+      break;
+    }
+  }
+  let tentativeWithholdingAmount = adjustedAnnualWageAmount - table[row][0];
+  tentativeWithholdingAmount *= table[row][3];
+  tentativeWithholdingAmount += table[row][2];
+  tentativeWithholdingAmount /= payPeriods;
+
+  return Math.max(0, tentativeWithholdingAmount - w4Data.step3) + w4Data.step4c;
+}
+
+function calculateGeorgiaStateWitholding(grossPay: number, days: number, w4Data: W4Data): number {
+  // TODO
+  return 0;
+}
+
+function getEmployeePayrollInfo(employee: any, hours: number, days: number): EmployeeInfo {
   const regularHours = Math.min(hours, 40);
   const grossRegularPay = employee.hourlyWage * regularHours;
   const overtimeHours = Math.max(0, hours - regularHours);
@@ -90,15 +248,15 @@ function getEmployeePayrollInfo(employee: any, hours: number): EmployeeInfo {
   const grossPay = grossRegularPay + grossOvertimePay;
 
   const federalUnemployment = Math.min(7000, 0.006 * grossPay);
-  const federalWitholding = 0;  // TODO
+  const federalWitholding = calculateFederalWitholding(grossPay, days, employee.w4Data);
   const medicareCompany = 0.0145 * grossPay;
   const medicareEmployee = 0.0145 * grossPay;
-  const medicareEmployeeAddlTax = 0.009 * grossPay;
-  const socialSecurtityCompany = Math.min(137700, 0.062 * grossPay);
-  const socialSecurtityEmployee = Math.min(137700, 0.062 * grossPay);;
-  const stateWitholding = 0;  // TODO
-  const stateUnemployment = Math.min(9500, 0.0264 * grossPay);
-  const stateAdminAssesment = Math.min(9500, 0.009 * grossPay);
+  const medicareEmployeeAddlTax = 0.009 * Math.max(0, grossPay - 200000);
+  const socialSecurtityCompany = 0.062 * Math.min(137700, grossPay);
+  const socialSecurtityEmployee = 0.062 * Math.min(137700, grossPay);
+  const stateWitholding = calculateGeorgiaStateWitholding(grossPay, days, employee.w4Data);
+  const stateUnemployment = 0.0264 * Math.min(9500, grossPay);
+  const stateAdminAssesment = 0.009 * Math.min(9500, grossPay);
 
   const totalEmployeeTaxes = federalWitholding
     + medicareEmployee
@@ -166,6 +324,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
   // Data passed in by client
   const startDate = data.startDate;
   const endDate = data.endDate;
+  const days = (new Date(endDate)).getDate() - (new Date(startDate)).getDate();
 
   try {
 
@@ -196,7 +355,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
     if (employeeCollectionSnapshot.size !== 0) {
       employeeCollectionSnapshot.forEach(employeeDocRef => {
         const employeeDocData = employeeDocRef.data()
-        const employeeInfo = getEmployeePayrollInfo(employeeDocData, hoursPerEmployee.get(employeeDocData.name) || 0);
+        const employeeInfo = getEmployeePayrollInfo(employeeDocData, hoursPerEmployee.get(employeeDocData.name) || 0, days);
         payrollInfo.employeeInfo.push(employeeInfo);
         payrollInfo.totalSalaryToPay += employeeInfo.netPay;
         payrollInfo.totalTaxesToPay += employeeInfo.totalEmployeeTaxes + employeeInfo.totalCompanyTaxes;

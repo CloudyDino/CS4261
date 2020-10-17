@@ -39,13 +39,40 @@
 
         <form id="addEmployeeForm" action="javascript:addEmployee()">
             <label for="name">Name:</label><br>
-            <input type="text" name="name" id="name"><br>
+            <input type="text" name="name" id="name" required><br>
+
             <label for="email">Email:</label><br>
             <input type="email" name="email" id="email"><br>
+
             <label for="hourlyWage">Hourly Wage:</label><br>
-            <input type="number" name="hourlyWage" id="hourlyWage" min="0" step="0.01"><br>
-            <label for="w4exemptions">W4 Exemptions:</label><br>
-            <input type="number" name="w4exemptions" id="w4exemptions"><br>
+            <input type="number" name="hourlyWage" id="hourlyWage" min="0" step="0.01" required><br>
+
+            <label for="w4filingStatus">W4 Filing Status:</label><br>
+            <select id="w4filingStatus" name="w4filingStatus" required><br>
+                <option value="single">Single</option>
+                <option value="marriedFilingSeparately">Married Filing Separately</option>
+                <option value="marriedFilingJointly">Married Filing Jointly</option>
+                <option value="headOfHousehold">Head of Household</option>
+            </select><br>
+
+            <label for="w4twoJobs">W4 Step 2c checkbox:</label><br>
+            <input type="radio" id="w4twoJobsYes" name="w4twoJobs" value="yes" required>
+            <label for="w4twoJobsYes">Yes</label><br>
+            <input type="radio" id="w4twoJobsNo" name="w4twoJobs" value="no" required>
+            <label for="w4twoJobsNo">No</label><br>
+
+            <label for="w4step3">W4 Step 3:</label><br>
+            <input type="number" name="w4step3" id="w4step3" min="0" step="0.01" required><br>
+
+            <label for="w4step4a">W4 Step 4a:</label><br>
+            <input type="number" name="w4step4a" id="w4step4a" min="0" step="0.01" required><br>
+
+            <label for="w4step4b">W4 Step 4b:</label><br>
+            <input type="number" name="w4step4b" id="w4step4b" min="0" step="0.01" required><br>
+
+            <label for="w4step4c">W4 Step 4c:</label><br>
+            <input type="number" name="w4step4c" id="w4step4c" min="0" step="0.01" required><br>
+
             <input type="submit" value="Add Employee">
         </form>
 
@@ -84,11 +111,11 @@
                                     <th>Name</th>
                                     <th>Email</th>
                                     <th>Hourly Wage</th>
-                                    <th>W4 Exemptions</th>
+                                    <th>W4 Filing Status</th>
                                 </tr>`;
                 querySnapshot.forEach(employeeDocRef => {
                     const employee = employeeDocRef.data();
-                    table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.hourlyWage, employee.w4exemptions);
+                    table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.hourlyWage, employee.w4Data.filingStatus);
                 });
                 table += '</table>';
                 document.getElementById('employeesInformation').innerHTML = table;
@@ -101,18 +128,25 @@
             name: document.getElementById('name').value,
             email: document.getElementById('email').value,
             hourlyWage: parseFloat(document.getElementById('hourlyWage').value),
-            w4exemptions: parseInt(document.getElementById('w4exemptions').value)
+            w4Data: {
+                filingStatus: document.getElementById('w4filingStatus').value,
+                twoJobs: document.getElementById('w4twoJobsYes').checked,
+                step3: parseFloat(document.getElementById('w4step3').value),
+                step4a: parseFloat(document.getElementById('w4step4a').value),
+                step4b: parseFloat(document.getElementById('w4step4b').value),
+                step4c: parseFloat(document.getElementById('w4step4c').value)
+            }
         });
         document.getElementById('addEmployeeForm').reset();
     }
 
-    function getEmployeeTableRow(employeeDocRefId, name, email, hourlyWage, w4exemptions) {
+    function getEmployeeTableRow(employeeDocRefId, name, email, hourlyWage, w4filingStatus) {
         return `<tr>
                     <td><button onclick="deleteEmployee('${employeeDocRefId}')">Delete</button></td>
                     <td>${name}</td>
                     <td>${email}</td>
                     <td>${hourlyWage}</td>
-                    <td>${w4exemptions}</td>
+                    <td>${w4filingStatus}</td>
                 </tr>`;
     }
 

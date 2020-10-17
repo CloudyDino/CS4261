@@ -35,3 +35,12 @@ export interface EmployeeInfo {
     totalCompanyTaxes: number;
     netPay: number;
 }
+
+export interface W4Data {
+    filingStatus: string;  // "single', 'marriedFilingSeparately", "marriedFilingJointly", "headOfHousehold"
+    twoJobs: boolean;
+    step3: number;
+    step4a: number;
+    step4b: number;
+    step4c: number;
+}
