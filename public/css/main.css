@@ -18,6 +18,10 @@ body {
     min-width: 100vw;
 }
 
+body.dark-theme {
+    filter: invert(1) hue-rotate(180deg);
+}
+
 table {
     border-collapse: collapse;
     width: 100%;
@@ -30,8 +34,4 @@ td, th {
 
 tr:nth-child(even) {
     background-color: #ddd;
-}
-
-.dark-theme {
-    filter: invert(1) hue-rotate(180deg);
 }
