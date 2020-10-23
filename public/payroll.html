@@ -72,9 +72,12 @@
                 const urlParams = new URLSearchParams(queryString);
                 const authCode = urlParams.get('code');
                 if (authCode) {
-                    firebase.functions().httpsCallable('updateGoogleApiAuthCredentials')({ authorizationCode: authCode });
+                    firebase.functions().httpsCallable('updateGoogleApiAuthCredentials')({ authorizationCode: authCode }).then(function () {
+                        populateCalendarDropdown();
+                    })
+                } else {
+                    populateCalendarDropdown();
                 }
-                populateCalendarDropdown();
             } else {
                 window.location.href = 'index.html';
             }
