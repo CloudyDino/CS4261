@@ -4,7 +4,7 @@ import { CallableContext } from 'firebase-functions/lib/providers/https';
 import { google, calendar_v3, Auth } from 'googleapis';
 import googleCredentials from './credentials.json';
 
-import { EmployeeInfo, PayrollInfo, W4Data } from "./objects";
+import { EmployeeInfo, PayrollInfo, W4Data, StateTaxData } from "./objects";
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -235,9 +235,77 @@ function calculateFederalWitholding(grossPay: number, days: number, w4Data: W4Da
   return Math.max(0, tentativeWithholdingAmount - w4Data.step3) + w4Data.step4c;
 }
 
-function calculateGeorgiaStateWitholding(grossPay: number, days: number, w4Data: W4Data): number {
-  // TODO
-  return 0;
+const standardDeduction = new Map<string, number>([
+  ['single', 4600],
+  ['marriedFilingSeparately', 3000],
+  ['marriedFilingJointly-bothSpousesWorking', 6000],
+  ['marriedFilingJointly-oneSpouseWorking', 6000],
+  ['headOfHousehold', 4600]
+]);
+
+
+
+const georgiaIncomeTaxBrackets = new Map<string, number[][]>([
+  ['single', [
+    [0, 750, 0.01, 0.00],
+    [750, 2250, 0.02, 7.50],
+    [2250, 3750, 0.03, 37.50],
+    [3750, 5250, 0.04, 82.50],
+    [5350, 7000, 0.05, 142.50],
+    [7000, Number.POSITIVE_INFINITY, 0.0575, 230]
+  ]],
+  ['marriedFilingSeparately', [
+    [0, 500, 0.01, 0.00],
+    [500, 1500, 0.02, 5.00],
+    [1500, 2500, 0.03, 25.00],
+    [2500, 3500, 0.04, 55.00],
+    [3500, 5000, 0.05, 95.00],
+    [5000, Number.POSITIVE_INFINITY, 0.0575, 170]
+  ]],
+  ['marriedFilingJointly-bothSpousesWorking', [
+    [0, 500, 0.01, 0.00],
+    [500, 1500, 0.02, 5.00],
+    [1500, 2500, 0.03, 25.00],
+    [2500, 3500, 0.04, 55.00],
+    [3500, 5000, 0.05, 95.00],
+    [5000, Number.POSITIVE_INFINITY, 0.0575, 170]
+  ]],
+  ['marriedFilingJointly-oneSpouseWorking', [
+    [0, 1000, 0.01, 0.00],
+    [1000, 3000, 0.02, 10.00],
+    [3000, 5000, 0.03, 50.00],
+    [5000, 7000, 0.04, 110.00],
+    [7000, 10000, 0.05, 190.00],
+    [10000, Number.POSITIVE_INFINITY, 0.0575, 340]
+  ]],
+  ['headOfHousehold', [
+    [0, 1000, 0.01, 0.00],
+    [1000, 3000, 0.02, 10.00],
+    [3000, 5000, 0.03, 50.00],
+    [5000, 7000, 0.04, 110.00],
+    [7000, 10000, 0.05, 190.00],
+    [10000, Number.POSITIVE_INFINITY, 0.0575, 340]
+  ]]
+]);
+function calculateGeorgiaStateWitholding(grossPay: number, days: number, stateTaxExempt: boolean, stateTaxData: StateTaxData): number {
+  if (stateTaxExempt) {
+    return 0;
+  }
+
+  let taxableIncome = grossPay * 365.25 / days;
+  taxableIncome -= (standardDeduction.get(stateTaxData.filingStatus) ?? 0);
+  taxableIncome -= 3000 * stateTaxData.dependentAllowance;
+
+  let stateIncomeTax = 0;
+  for (const bracket of georgiaIncomeTaxBrackets.get(stateTaxData.filingStatus) ?? []) {
+    if (bracket[0] <= taxableIncome && taxableIncome < bracket[1]) {
+      stateIncomeTax = bracket[2] * (taxableIncome - bracket[0]) + bracket[3];
+      break;
+    }
+  }
+  stateIncomeTax = stateIncomeTax * days / 365.25;
+
+  return stateIncomeTax + stateTaxData.additionalWitholding;
 }
 
 function getEmployeePayrollInfo(employee: any, hours: number, days: number): EmployeeInfo {
@@ -254,7 +322,7 @@ function getEmployeePayrollInfo(employee: any, hours: number, days: number): Emp
   const medicareEmployeeAddlTax = 0.009 * Math.max(0, grossPay - 200000);
   const socialSecurtityCompany = 0.062 * Math.min(137700, grossPay);
   const socialSecurtityEmployee = 0.062 * Math.min(137700, grossPay);
-  const stateWitholding = calculateGeorgiaStateWitholding(grossPay, days, employee.w4Data);
+  const stateWitholding = calculateGeorgiaStateWitholding(grossPay, days, employee.stateTaxExempt, employee.stateTaxInfo);
   const stateUnemployment = 0.0264 * Math.min(9500, grossPay);
   const stateAdminAssesment = 0.009 * Math.min(9500, grossPay);
 

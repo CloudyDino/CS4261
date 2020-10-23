@@ -44,3 +44,10 @@ export interface W4Data {
     step4b: number;
     step4c: number;
 }
+
+export interface StateTaxData {
+    filingStatus: string;  // "single', 'marriedFilingSeparately", "marriedFilingJointly-bothSpousesWorking", "marriedFilingJointly-oneSpouseWorking", "headOfHousehold"
+    personalAllowances: number
+    dependentAllowance: number;
+    additionalWitholding: number;
+}

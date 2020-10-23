@@ -73,6 +73,38 @@
             <label for="w4step4c">W4 Step 4c:</label><br>
             <input type="number" name="w4step4c" id="w4step4c" min="0" step="0.01" required><br>
 
+            <label for="w4step4c">W4 Step 4c:</label><br>
+            <input type="number" name="w4step4c" id="w4step4c" min="0" step="0.01" required><br>
+
+            <label for="stateTaxExempt">Exempt From State Tax: </label>
+            <input type="checkbox" name="stateTaxExempt" id="stateTaxExempt" onclick="toggleStateTax()"><br>
+
+            <div id="stateTaxInfo">
+                <p>Take a look at the G4 form for this information which can be found <a href="https://dor.georgia.gov/sites/dor.georgia.gov/files/related_files/document/TSD/Form/TSD_Employees_Withholding_Allowance_Certificate_G-4.pdf" target="_blank">here</a>.</p>
+
+                <label for="stateFilingStatus">State Filing Status (line 3):</label><br>
+                <select id="stateFilingStatus" name="stateFilingStatus" required><br>
+                    <option value="single">Single</option>
+                    <option value="marriedFilingSeparately">Married Filing Separately</option>
+                    <option value="marriedFilingJointly-bothSpousesWorking">Married Filing Jointly, both spouses working</option>
+                    <option value="marriedFilingJointly-oneSpouseWorking">Married Filing Jointly, one spouse working</option>
+                    <option value="headOfHousehold">Head of Household</option>
+                </select><br>
+
+                <label for="statePersonalAllowances">Personal Allowances (line 3):</label><br>
+                <select id="statePersonalAllowances" name="statePersonalAllowances" required><br>
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                </select><br>
+
+                <label for="stateDependentAllowance">Dependent Allowance (line 4):</label><br>
+                <input type="number" name="stateDependentAllowance" id="stateDependentAllowance" required><br>
+
+                <label for="stateAdditionalWitholding">Additional Witholding (line 6):</label><br>
+                <input type="number" name="stateAdditionalWitholding" id="stateAdditionalWitholding" min="0" step="0.01" required><br>
+            </div>
+
             <input type="submit" value="Add Employee">
         </form>
 
@@ -112,10 +144,11 @@
                                     <th>Email</th>
                                     <th>Hourly Wage</th>
                                     <th>W4 Filing Status</th>
+                                    <th>State Tax Exempt</th>
                                 </tr>`;
                 querySnapshot.forEach(employeeDocRef => {
                     const employee = employeeDocRef.data();
-                    table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.hourlyWage, employee.w4Data.filingStatus);
+                    table += getEmployeeTableRow(employeeDocRef.id, employee.name, employee.email, employee.hourlyWage, employee.w4Data.filingStatus, employee.stateTaxExempt);
                 });
                 table += '</table>';
                 document.getElementById('employeesInformation').innerHTML = table;
@@ -124,7 +157,7 @@
     }
 
     function addEmployee() {
-        employeesCollectionRef.add({
+        var employee = {
             name: document.getElementById('name').value,
             email: document.getElementById('email').value,
             hourlyWage: parseFloat(document.getElementById('hourlyWage').value),
@@ -135,23 +168,38 @@
                 step4a: parseFloat(document.getElementById('w4step4a').value),
                 step4b: parseFloat(document.getElementById('w4step4b').value),
                 step4c: parseFloat(document.getElementById('w4step4c').value)
-            }
-        });
+            },
+            stateTaxExempt: document.getElementById("stateTaxExempt").checked
+        };
+        if (!employee.stateTaxExempt) {
+            employee.stateTaxInfo = {
+                filingStatus: document.getElementById('stateFilingStatus').value,
+                personalAllowances: parseFloat(document.getElementById('statePersonalAllowances').value),
+                dependentAllowance: parseFloat(document.getElementById('stateDependentAllowance').value),
+                additionalWitholding: parseFloat(document.getElementById('stateAdditionalWitholding').value)
+            };
+        }
+        employeesCollectionRef.add(employee);
         document.getElementById('addEmployeeForm').reset();
     }
 
-    function getEmployeeTableRow(employeeDocRefId, name, email, hourlyWage, w4filingStatus) {
+    function getEmployeeTableRow(employeeDocRefId, name, email, hourlyWage, w4filingStatus, stateTaxExempt) {
         return `<tr>
                     <td><button onclick="deleteEmployee('${employeeDocRefId}')">Delete</button></td>
                     <td>${name}</td>
                     <td>${email}</td>
                     <td>${hourlyWage}</td>
                     <td>${w4filingStatus}</td>
+                    <td>${stateTaxExempt}</td>
                 </tr>`;
     }
 
     function deleteEmployee(employeeDocRefId) {
         employeesCollectionRef.doc(employeeDocRefId).delete();
+    }
+
+    function toggleStateTax() {
+        document.getElementById("stateTaxInfo").style.display = document.getElementById("stateTaxExempt").checked ? "none" : "block";
     }
 </script>
 
