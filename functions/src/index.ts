@@ -34,66 +34,52 @@ async function getCalendarApi(credentials: Auth.Credentials) {
 }
 
 // Returns a map of calendar ids to calendar names
-// async function getAllCalendars(calendarApi: calendar_v3.Calendar): Promise<Map<string, string>> {
-//   const calList = await calendarApi.calendarList.list();
-//   const calendars = calList.data.items;
-//   const calendarIdToName = new Map<string, string>();
-
-//   if (calendars) {
-//     for (const calendar of calendars) {
-//       if (typeof calendar.summary === 'string' && calendar.id === 'string') {
-//         calendarIdToName.set(calendar.id, calendar.summary);
-//       }
-//     }
-//   }
-
-//   return calendarIdToName;
-// }
-
-// TODO: use for calendar dropdown. Also send back last used calendar so it can be the default value. also make sure to set the last used calendar in getEmployeeHours
-// export const getCalendars = functions.https.onCall(async (data: any, context: CallableContext) => {
-//   const uid = context.auth?.uid;
-//   if (typeof uid === 'undefined') {
-//     return Promise.reject();
-//   }
-
-//   try {
-
-//     const userSnapshot = await db.collection('test').doc(uid).get();
-//     const googleApiAuthCredentials = userSnapshot.data()?.googleApiAuthCredentials;
-
-//     if (!googleApiAuthCredentials) {
-//       return {
-//         authUrl: url
-//       };
-//     }
-//     return getAllCalendars(await getCalendarApi(googleApiAuthCredentials));
-//   } catch (error) {
-//     console.log(error);
-//     return Promise.reject();
-//   }
-// });
-
-
-async function getCalendarId(calendarApi: calendar_v3.Calendar, calendarName: string): Promise<string> {
+async function getAllCalendars(calendarApi: calendar_v3.Calendar) {
   const calList = await calendarApi.calendarList.list();
   const calendars = calList.data.items;
+  const calendarIdToName: string[][] = [];
 
   if (calendars) {
     for (const calendar of calendars) {
-      if (calendar.summary === calendarName && typeof calendar.id === 'string') {
-        return calendar.id;
+      if (typeof calendar.summary === 'string' && typeof calendar.id === 'string') {
+        calendarIdToName.push([calendar.id, calendar.summary]);
       }
     }
   }
 
-  return 'primary';
+  return calendarIdToName
 }
 
-async function getEmployeeHours(calendarApi: calendar_v3.Calendar, startDate: string, endDate: string): Promise<Map<string, number>> {
+export const getCalendars = functions.https.onCall(async (data: any, context: CallableContext) => {
+  const uid = context.auth?.uid;
+  if (typeof uid === 'undefined') {
+    return Promise.reject();
+  }
+
+  try {
+
+    const userSnapshot = await db.collection('test').doc(uid).get();
+    const googleApiAuthCredentials = userSnapshot.data()?.googleApiAuthCredentials;
+
+    if (!googleApiAuthCredentials) {
+      return {
+        authUrl: url
+      };
+    }
+
+    return {
+      default: userSnapshot.data()?.defaultCalendarId ?? "",
+      calendars: Object.entries(await getAllCalendars(await getCalendarApi(googleApiAuthCredentials)))
+    };
+  } catch (error) {
+    console.log(error);
+    return Promise.reject();
+  }
+});
+
+async function getEmployeeHours(calendarApi: calendar_v3.Calendar, calendarId: string, startDate: string, endDate: string): Promise<Map<string, number>> {
   const hoursPerEmployee = new Map();
 
-  const calendarId = await getCalendarId(calendarApi, 'Work Schedule');
   const calendarEvents = await calendarApi.events.list({
     calendarId: calendarId,
     timeMin: startDate,
@@ -372,9 +358,10 @@ export const updateGoogleApiAuthCredentials = functions.https.onCall(async (data
   }
   try {
     const { tokens } = await oAuth2Client.getToken(authorizationCode);
-    await db.collection('test').doc(uid).set({
-      googleApiAuthCredentials: tokens
-    });
+    await db.collection('test').doc(uid).set(
+      { googleApiAuthCredentials: tokens },
+      { merge: true }
+    );
   } catch (error) {
     console.log(error);
     return Promise.reject();
@@ -390,12 +377,19 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
   }
 
   // Data passed in by client
+  const calendarId = data.calendarId;
   const startDate = data.startDate;
   const endDate = data.endDate;
   const days = (new Date(endDate)).getDate() - (new Date(startDate)).getDate();
 
   try {
 
+    db.collection('test').doc(uid).set(
+      { defaultCalendarId: calendarId },
+      { merge: true }
+    ).catch(error => {
+      console.log(error);
+    });
     const userSnapshot = await db.collection('test').doc(uid).get();
     const googleApiAuthCredentials = userSnapshot.data()?.googleApiAuthCredentials;
 
@@ -408,7 +402,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
     let hoursPerEmployee: Map<string, number>;
     try {
       const calendarApi = await getCalendarApi(googleApiAuthCredentials);
-      hoursPerEmployee = await getEmployeeHours(calendarApi, startDate, endDate);
+      hoursPerEmployee = await getEmployeeHours(calendarApi, calendarId, startDate, endDate);
     } catch (error) {
       // User probably revoked permisions
       console.log(error);

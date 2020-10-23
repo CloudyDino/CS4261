@@ -47,10 +47,9 @@
         </p>
 
         <form id="payrollDateSelector" action="javascript:populatePayrollInformation()">
-            <!-- <label for="calendarDropdown">Calendar</label>
+            <label for="calendarDropdown">Calendar</label>
             <select id="calendarDropdown" name="calendarDropdown" required>
-                <option value="calendarIdHere">Calendar Name Here</option>
-            </select> -->
+            </select>
             <label for="payrollStartDate">Start Date</label>
             <input type="date" id="payrollStartDate" name="Start Date" required>
             <label for="payrollEndDate">End Date</label>
@@ -74,21 +73,36 @@
                 if (authCode) {
                     firebase.functions().httpsCallable('updateGoogleApiAuthCredentials')({ authorizationCode: authCode });
                 }
+                populateCalendarDropdown();
             } else {
                 window.location.href = 'index.html';
             }
         });
     });
 
-    function getPayrollInfo(startDate, endDate) {
+    async function populateCalendarDropdown() {
+        let selections = "";
+        const calendarInfo = (await firebase.functions().httpsCallable('getCalendars')()).data;
+        if (calendarInfo.authUrl) {
+            window.location.href = calendarInfo.authUrl;
+        } else {
+            for (let [i, calendar] of calendarInfo.calendars) {
+                selections += `<option ${calendarInfo.default === calendar[0] ? `selected="selected"` : ""} value="${calendar[0]}">${calendar[1]}</option>`
+            }
+            document.getElementById('calendarDropdown').innerHTML = selections;
+        }
+    }
+
+    function getPayrollInfo(calendarId, startDate, endDate) {
         endDate.setDate(endDate.getDate() + 1);
-        return firebase.functions().httpsCallable('getPayrollInfo')({ startDate: startDate.toJSON(), endDate: endDate.toJSON() });
+        return firebase.functions().httpsCallable('getPayrollInfo')({ calendarId: calendarId, startDate: startDate.toJSON(), endDate: endDate.toJSON() });
     }
 
     async function populatePayrollInformation() {
+        const calendarId = document.getElementById('calendarDropdown').value;
         const startDate = new Date(document.getElementById('payrollStartDate').value);
         const endDate = new Date(document.getElementById('payrollEndDate').value);
-        const payrollInfo = (await getPayrollInfo(startDate, endDate)).data;
+        const payrollInfo = (await getPayrollInfo(calendarId, startDate, endDate)).data;
         if (payrollInfo.authUrl) {
             window.location.href = payrollInfo.authUrl;
         } else if (!payrollInfo.employeeInfo || payrollInfo.employeeInfo.length == 0) {

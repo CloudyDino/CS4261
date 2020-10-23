@@ -70,10 +70,13 @@
     });
 
     function updateBusinessInformation() {
-        businessInfoDocRef.set({
-            name: document.getElementById('name').value,
-            ein: document.getElementById('ein').value
-        }, { merge: true });
+        businessInfoDocRef.set(
+            {
+                name: document.getElementById('name').value,
+                ein: document.getElementById('ein').value
+            },
+            { merge: true }
+        );
     }
 
     function logout() {
