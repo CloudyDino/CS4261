@@ -110,6 +110,8 @@
         </form>
 
         <div id="employeesInformation"></div>
+
+        <div id="editEmployee"></div>
     </main>
 
 </body>
@@ -140,6 +142,7 @@
             } else {
                 let table = `<table>
                                 <tr>
+                                    <th></th>
                                     <th></th>
                                     <th>Name</th>
                                     <th>Email</th>
@@ -187,6 +190,7 @@
     function getEmployeeTableRow(employeeDocRefId, name, email, hourlyWage, w4filingStatus, stateTaxExempt) {
         return `<tr>
                     <td><button onclick="deleteEmployee('${employeeDocRefId}')">Delete</button></td>
+                    <td><button onclick="editEmployeeForm('${employeeDocRefId}')">Edit</button></td>
                     <td>${name}</td>
                     <td>${email}</td>
                     <td>${hourlyWage}</td>
@@ -197,6 +201,24 @@
 
     function deleteEmployee(employeeDocRefId) {
         employeesCollectionRef.doc(employeeDocRefId).delete();
+    }
+
+    function editEmployeeForm(employeeDocRefId) {
+        console.log("Edit")
+        let editForm = ` <form id="updateEmployeeForm" action="javascript:editEmployeeSubmit('${employeeDocRefId}')">
+                            <label for="name">Name:</label><br>
+                            <input type="text" name="name" id="editName" required><br>
+                            <input type="submit" value="Add Employee">
+                        </form>`;
+        document.getElementById("editEmployee").innerHTML = editForm;
+        // employeesCollectionRef.doc(employeeDocRefId).update({name: document.getElementById("updateEmployee").name.value()})
+    }
+
+    function editEmployeeSubmit(employeeDocRefId) {
+        console.log("hi")
+        newName = document.getElementById("editName").value;
+        employeesCollectionRef.doc(employeeDocRefId).update({name: newName});
+        document.getElementById("editEmployee").innerHTML=``;
     }
 
     function toggleStateTax() {
