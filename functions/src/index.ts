@@ -23,9 +23,16 @@ const url = oAuth2Client.generateAuthUrl({
   ]
 });
 
-async function getCalendarApi(credentials: Auth.Credentials) {
-  // TODO: Check if we need to make a local copy in case multiple threads are
-  // editing a single instance of oAuth2Client
+async function getCalendarApi(credentials: Auth.Credentials, uid: string) {
+  oAuth2Client.on('tokens', (tokens) => {
+    if (tokens.refresh_token) {
+      db.collection('test').doc(uid).set(
+        { googleApiAuthCredentials: tokens },
+        { merge: true }
+      );
+    }
+  });
+
   oAuth2Client.setCredentials(credentials);
   return google.calendar({
     version: 'v3',
@@ -69,11 +76,13 @@ export const getCalendars = functions.https.onCall(async (data: any, context: Ca
 
     return {
       default: userSnapshot.data()?.defaultCalendarId ?? "",
-      calendars: Object.entries(await getAllCalendars(await getCalendarApi(googleApiAuthCredentials)))
+      calendars: Object.entries(await getAllCalendars(await getCalendarApi(googleApiAuthCredentials, uid)))
     };
   } catch (error) {
     console.log(error);
-    return Promise.reject();
+    return {
+      authUrl: url
+    };;
   }
 });
 
@@ -401,7 +410,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
 
     let hoursPerEmployee: Map<string, number>;
     try {
-      const calendarApi = await getCalendarApi(googleApiAuthCredentials);
+      const calendarApi = await getCalendarApi(googleApiAuthCredentials, uid);
       hoursPerEmployee = await getEmployeeHours(calendarApi, calendarId, startDate, endDate);
     } catch (error) {
       // User probably revoked permisions
