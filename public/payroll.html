@@ -41,20 +41,28 @@
 
         <p>
             Make sure that your employees' hours are located as events in your <a
-                href="https://calendar.google.com/calendar/" target="_blank">Google Calendar</a>. Make sure you have a
-            calendar named as "Work Schedule" (without the quotes) or create one <a
-                href="https://calendar.google.com/calendar/u/0/r/settings/createcalendar" target="_blank">here</a>.
-            Finally, make sure that each event uses the full name of the employee.
+                href="https://calendar.google.com/calendar/" target="_blank">Google Calendar</a>. Make sure that each event uses the full name of the employee.
         </p>
 
         <form id="payrollDateSelector" action="javascript:populatePayrollInformation()">
             <label for="calendarDropdown">Calendar</label>
             <select id="calendarDropdown" name="calendarDropdown" required>
-            </select>
+            </select><br>
+
+            <label for="dateRange">Choose a date range</label>
+            <select name="dateRange" id="dateRange" onchange="selectDate()">
+                <option value="currentWeek">Current Week</option>
+                <option value="lastWeek">Last Week</option>
+                <option value="lastCurrentWeeks">Last and Current Weeks</option>
+                <option value="CurrentNextWeeks">Current and Next Weeks</option>
+                <option value="currentMonth">Current Month</option>
+            </select><br>
+
             <label for="payrollStartDate">Start Date</label>
-            <input type="date" id="payrollStartDate" name="Start Date" required>
+            <input type="date" id="payrollStartDate" name="payrollStartDate" required>
+
             <label for="payrollEndDate">End Date</label>
-            <input type="date" id="payrollEndDate" name="End Date" required>
+            <input type="date" id="payrollEndDate" name="payrollEndDate" required>
             <input type="submit" value="Generate">
         </form>
         <div id="payrollInformation"></div>
@@ -73,16 +81,21 @@
                 const authCode = urlParams.get('code');
                 if (authCode) {
                     firebase.functions().httpsCallable('updateGoogleApiAuthCredentials')({ authorizationCode: authCode }).then(function () {
-                        populateCalendarDropdown();
-                    })
+                        init();
+                    });
                 } else {
-                    populateCalendarDropdown();
+                    init();
                 }
             } else {
                 window.location.href = 'index.html';
             }
         });
     });
+
+    function init() {
+        populateCalendarDropdown();
+        selectDate();
+    }
 
     async function populateCalendarDropdown() {
         let selections = "";
@@ -183,6 +196,40 @@
 
     function runPayroll() {
         alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
+    }
+
+    function selectDate() {
+        let dt = new Date();
+        let firstDay, lastDay;
+        const dropboxvalue = document.getElementById('dateRange').value;
+        if (dropboxvalue == "currentWeek") {
+            const weekDay = dt.getDay();
+            const lessDays = weekDay == 0 ? 6 : weekDay - 1;
+            firstDay = new Date(new Date(dt).setDate(dt.getDate() - lessDays));
+            lastDay = new Date(new Date(firstDay).setDate(firstDay.getDate() + 6));
+        } else if (dropboxvalue == "lastWeek") {
+            dt.setDate(dt.getDate() - 7);
+            const weekDay = dt.getDay();
+            const lessDays = weekDay == 0 ? 6 : weekDay - 1;
+            firstDay = new Date(new Date(dt).setDate(dt.getDate() - lessDays));
+            lastDay = new Date(new Date(firstDay).setDate(firstDay.getDate() + 6));
+        } else if (dropboxvalue == "lastCurrentWeeks") {
+            dt.setDate(dt.getDate() - 7);
+            const weekDay = dt.getDay();
+            const lessDays = weekDay == 0 ? 6 : weekDay - 1;
+            firstDay = new Date(new Date(dt).setDate(dt.getDate() - lessDays));
+            lastDay = new Date(new Date(firstDay).setDate(firstDay.getDate() + 13));
+        } else if (dropboxvalue == "CurrentNextWeeks") {
+            const weekDay = dt.getDay();
+            const lessDays = weekDay == 0 ? 6 : weekDay - 1;
+            firstDay = new Date(new Date(dt).setDate(dt.getDate() - lessDays));
+            lastDay = new Date(new Date(firstDay).setDate(firstDay.getDate() + 13));
+        } else if (dropboxvalue == "currentMonth") {
+            firstDay = new Date(dt.getFullYear(), dt.getMonth(), 1);
+            lastDay = new Date(dt.getFullYear(), dt.getMonth() + 1, 0);
+        }
+        document.getElementById('payrollStartDate').valueAsDate = firstDay;
+        document.getElementById('payrollEndDate').valueAsDate = lastDay;
     }
 
     function exportTableToExcel(tableID, filename = '') {
