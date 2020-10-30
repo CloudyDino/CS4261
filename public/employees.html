@@ -207,8 +207,24 @@
         console.log("Edit")
         let editForm = ` <form id="updateEmployeeForm" action="javascript:editEmployeeSubmit('${employeeDocRefId}')">
                             <label for="name">Name:</label><br>
-                            <input type="text" name="name" id="editName" required><br>
-                            <input type="submit" value="Add Employee">
+                            <input type="text" name="name" id="editName"><br>
+
+                            <label for="email">Email:</label><br>
+                            <input type="email" name="editEmail" id="editEmail"><br>
+
+                            <label for="hourlyWage">Hourly Wage:</label><br>
+                            <input type="number" name="hourlyWage" id="editHourlyWage" min="0" step="0.01"><br>
+
+                            <label for="w4filingStatus">W4 Filing Status:</label><br>
+                            <select id="editW4filingStatus" name="w4filingStatus" required><br>
+                                <option value="single">Single</option>
+                                <option value="marriedFilingSeparately">Married Filing Separately</option>
+                                <option value="marriedFilingJointly">Married Filing Jointly</option>
+                                <option value="headOfHousehold">Head of Household</option>
+                            </select><br>
+
+                            <input type="submit" value="Update">
+                            <button onClick=editEmployeeCancel()>Cancel</button>
                         </form>`;
         document.getElementById("editEmployee").innerHTML = editForm;
         // employeesCollectionRef.doc(employeeDocRefId).update({name: document.getElementById("updateEmployee").name.value()})
@@ -217,9 +233,22 @@
     function editEmployeeSubmit(employeeDocRefId) {
         console.log("hi")
         newName = document.getElementById("editName").value;
-        employeesCollectionRef.doc(employeeDocRefId).update({name: newName});
+        newEmail = document.getElementById("editEmail").value;
+        newHourlyWage = document.getElementById("editHourlyWage").value;
+        newW4filingStatus = document.getElementById("editW4filingStatus").value;
+        employeesCollectionRef.doc(employeeDocRefId).update({
+            name: newName, 
+            email: newEmail, 
+            hourlyWage: newHourlyWage,
+            w4Data: {
+                filingStatus: newW4filingStatus
+            }
+        });
         document.getElementById("editEmployee").innerHTML=``;
     }
+     function editEmployeeCancel() {
+         document.getElementById("editEmployee").innerHTML = ``;
+     }
 
     function toggleStateTax() {
         document.getElementById("stateTaxInfo").style.display = document.getElementById("stateTaxExempt").checked ? "none" : "block";
