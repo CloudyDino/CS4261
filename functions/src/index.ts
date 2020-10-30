@@ -26,10 +26,10 @@ const url = oAuth2Client.generateAuthUrl({
 async function getCalendarApi(credentials: Auth.Credentials, uid: string) {
   oAuth2Client.on('tokens', (tokens) => {
     if (tokens.refresh_token) {
-      db.collection('test').doc(uid).set(
-        { googleApiAuthCredentials: tokens },
-        { merge: true }
-      );
+        db.collection('test').doc(uid).set(
+          { googleApiAuthCredentials: tokens },
+          { merge: true }
+        ).catch(console.log);
     }
   });
 
