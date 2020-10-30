@@ -12,7 +12,7 @@ const db = admin.firestore();
 const oAuth2Client = new google.auth.OAuth2(
   googleCredentials.web.client_id,
   googleCredentials.web.client_secret,
-  googleCredentials.web.redirect_uris[0]
+  "http://localhost:5000/payroll.html"
 );
 
 const url = oAuth2Client.generateAuthUrl({
@@ -66,6 +66,8 @@ export const getCalendars = functions.https.onCall(async (data: any, context: Ca
         authUrl: url
       };
     }
+
+    
 
     return {
       default: userSnapshot.data()?.defaultCalendarId ?? "",
@@ -358,6 +360,7 @@ export const updateGoogleApiAuthCredentials = functions.https.onCall(async (data
   }
   try {
     const { tokens } = await oAuth2Client.getToken(authorizationCode);
+    console.log("token: " + tokens);
     await db.collection('test').doc(uid).set(
       { googleApiAuthCredentials: tokens },
       { merge: true }
@@ -431,4 +434,34 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
     console.error(error);
     return Promise.reject();
   }
+});
+
+export const getPastPayrollPeriods = functions.https.onCall(async (data: any, context: CallableContext) => {
+  console.log("inside get past payroll periods list");
+  const uid = context.auth?.uid;
+  if (typeof uid === 'undefined') {
+    return Promise.reject();
+  }
+  console.log(uid);
+  try {
+
+    var pastPayrollsList: string[] = [];
+    const pastPayrolls = await db.collection('test').doc(uid).collection('pastPayrolls').get();
+    console.log(pastPayrolls.size);
+    if (!pastPayrolls.empty) {
+      pastPayrolls.forEach(pastPayrollRef => {
+        console.log(pastPayrollRef.id);
+        pastPayrollsList.push(pastPayrollRef.id);
+      })
+    }
+
+    return pastPayrollsList;
+  } catch (error) {
+    console.log(error);
+    return Promise.reject();
+  }
+});
+
+export const getPastPayroll = functions.https.onCall(async (data: any, context: CallableContext) => {
+
 });

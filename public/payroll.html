@@ -99,7 +99,7 @@
     async function populateCalendarDropdown() {
         console.log("in populate calendar");
         let selections = "";
-        const calendarInfo = (await firebase.functions().httpsCallable('getCalendars')()).data;
+        const calendarInfo = (await firebase.functions().httpsCallable('getCalcendars')()).data;
         console.log("calendar info: " + calendarInfo);
         if (calendarInfo.authUrl) {
             window.location.href = calendarInfo.authUrl;
@@ -116,6 +116,7 @@
         return firebase.functions().httpsCallable('getPayrollInfo')({ calendarId: calendarId, startDate: startDate.toJSON(), endDate: endDate.toJSON() });
     }
 
+    
     async function populatePayrollInformation() {
         const calendarId = document.getElementById('calendarDropdown').value;
         const startDate = new Date(document.getElementById('payrollStartDate').value);
@@ -226,7 +227,7 @@
         alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
     }
 
-    function addToPastPayroll() {
+    async function addToPastPayroll() {
         const startDate = document.getElementById('payrollStartDate').value;
         const endDate = document.getElementById('payrollEndDate').value;
         var payrollRangeStr = startDate + " - " + endDate;
@@ -236,11 +237,15 @@
             pastPayrollsCollectionRef.doc(payrollRangeStr).collection("employeesList").doc(employee.name).set(employee);
         });
 
-        pastPayrollsCollectionRef.doc(payrollRangeStr).set({
+        const calendarId = document.getElementById('calendarDropdown').value;
+        const payrollInfo = (await getPayrollInfo(calendarId, startDate, endDate)).data;
+
+        pastPayrollsCollectionRef.doc(payrollRangeStr).set(
+            {
             totalSalary: payrollInfo.totalSalaryToPay,
             totalTaxes: payrollInfo.totalTaxesToPay,
-            totalMoneyRequired: payrollInfo.totalMoneyRequired
-        });
+            totalMoneyRequired: payrollInfo.totalMoneyRequired},
+            {merge: true});
     }
 
     function exportTableToExcel(tableID, filename = '') {
