@@ -32,7 +32,9 @@
             <a href="/payroll.html">
                 <li>Run Payroll</li>
             </a>
-            <li>Past Payrolls</li>
+            <a href="/past_payrolls.html">
+                <li>Past Payrolls</li>
+            </a>
         </ul>
     </nav>
 
@@ -65,9 +67,19 @@
 </body>
 
 <script>
+    let pastPayrollsCollectionRef;
+
     document.addEventListener('DOMContentLoaded', function () {
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
+
+                firebase.functions().useFunctionsEmulator('http://localhost:5001');
+
+                pastPayrollsCollectionRef = firebase.firestore()
+                    .collection('test')
+                    .doc(user.uid)
+                    .collection('pastPayrolls');
+
                 const queryString = window.location.search;
                 const urlParams = new URLSearchParams(queryString);
                 const authCode = urlParams.get('code');
@@ -85,8 +97,10 @@
     });
 
     async function populateCalendarDropdown() {
+        console.log("in populate calendar");
         let selections = "";
         const calendarInfo = (await firebase.functions().httpsCallable('getCalendars')()).data;
+        console.log("calendar info: " + calendarInfo);
         if (calendarInfo.authUrl) {
             window.location.href = calendarInfo.authUrl;
         } else {
@@ -156,7 +170,32 @@
         }
     }
 
+    var employeePayrollRowList = new Array();
     function getPayrollTableRow(employee) {
+        var employeeRow = {
+            name: employee.name,
+            regularHours: employee.regularHours,
+            regularHourlyWage: employee.regularHourlyWage,
+            grossRegularPay: employee.grossRegularPay,
+            overtimeHours: employee.overtimeHours,
+            overtimeHourlyWage: employee.overtimeHourlyWage,
+            grossOvertimePay: employee.grossOvertimePay,
+            grossPay: employee.grossPay,
+            federalWitholding: employee.federalWitholding,
+            medicareTax: (employee.medicareEmployee + employee.medicareEmployeeAddlTax),
+            socialSecurityTax: employee.socialSecurtityEmployee,
+            stateWitholding: employee.stateWitholding,
+            totalEmployeeTaxes: employee.totalEmployeeTaxes,
+            federalUnemploymentTax: employee.federalUnemployment,
+            companyMedicareTax: employee.medicareCompany,
+            companySocialSecurityTax: employee.socialSecurtityCompany,
+            stateUnemploymentTax: employee.stateUnemployment,
+            stateAdminAssesmentTax:employee.stateAdminAssesment,
+            totalCompanyTaxes: employee.totalCompanyTaxes,
+            netPay: employee.netPay
+        };
+        employeePayrollRowList.push(employeeRow);
+
         return `<tr>
                     <td>${employee.name}</td>
                     <td>${employee.regularHours.toFixed(2)}</td>
@@ -182,7 +221,26 @@
     }
 
     function runPayroll() {
+        console.log("before");
+        addToPastPayroll();
         alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
+    }
+
+    function addToPastPayroll() {
+        const startDate = document.getElementById('payrollStartDate').value;
+        const endDate = document.getElementById('payrollEndDate').value;
+        var payrollRangeStr = startDate + " - " + endDate;
+        alert(payrollRangeStr);
+        alert(employeePayrollRowList.length);
+        employeePayrollRowList.forEach(employee => {
+            pastPayrollsCollectionRef.doc(payrollRangeStr).collection("employeesList").doc(employee.name).set(employee);
+        });
+
+        pastPayrollsCollectionRef.doc(payrollRangeStr).set({
+            totalSalary: payrollInfo.totalSalaryToPay,
+            totalTaxes: payrollInfo.totalTaxesToPay,
+            totalMoneyRequired: payrollInfo.totalMoneyRequired
+        });
     }
 
     function exportTableToExcel(tableID, filename = '') {
