@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paysense: Dashboard</title>
+    <title>Paysense: Payroll</title>
 
     <link rel="stylesheet" type="text/css" href="/css/main.css">
     <script src="/js/main.js"></script>
@@ -12,11 +12,12 @@
     <script defer src="/__/firebase/7.16.1/firebase-app.js"></script>
     <script defer src="/__/firebase/7.16.1/firebase-auth.js"></script>
     <script defer src="/__/firebase/7.16.1/firebase-firestore.js"></script>
+    <script defer src="/__/firebase/7.16.1/firebase-functions.js"></script>
     <script defer src="/__/firebase/init.js"></script>
 </head>
 
 <body>
-    <h1>Dashboard</h1>
+    <h1>See Past Payroll</h1>
     <nav>
         <ul>
             <a href="/dashboard.html">
@@ -34,54 +35,42 @@
             <a href="/past_payrolls.html">
                 <li>Past Payrolls</li>
             </a>
-            <li><button onclick="logout()">Log Out</button></li>
         </ul>
     </nav>
 
     <main>
-        <h2>Dashboard</h2>
-        <h3>Business Information</h3>
-        <form action="javascript:updateBusinessInformation()">
-            <label for="name">Name:</label><br>
-            <input type="text" name="name" id="name"><br>
-            <label for="ein">Employer ID Number (EIN):</label><br>
-            <input type="text" name="ein" id="ein"><br>
-            <input type="submit" value="Update">
-        </form>
-    </main>
+        <h2>Select a past payroll to view</h2>
 
+        <label for="pastPayrollDropdown">Past Payroll Period</label>
+        <select id="pastPayrollDropdown" name="pastPayrollDropdown" required>
+        </select>
+    </main>
 </body>
 
 <script>
-    let businessInfoDocRef;
+    let pastPayrollsCollectionRef;
 
     document.addEventListener('DOMContentLoaded', function () {
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
-                businessInfoDocRef = firebase.firestore()
-                    .collection('test')
-                    .doc(user.uid);
 
-                businessInfoDocRef.onSnapshot((docRef) => {
-                    const doc = docRef.data();
-                    document.getElementById('name').value = (doc == null || doc.name == null) ? '' : doc.name;
-                    document.getElementById('ein').value = (doc == null || doc.ein == null) ? '' : doc.ein;
-                });
+                firebase.functions().useFunctionsEmulator('http://localhost:5001');
+
+                pastPayrollsCollectionRef = firebase.firestore()
+                    .collection('test')
+                    .doc(user.uid)
+                    .collection('pastPayrolls');
+                
+                console.log("calling populate payroll drop");
+                populatePastPayrollDropdown();
             } else {
                 window.location.href = 'index.html';
             }
         });
     });
 
-    function updateBusinessInformation() {
-        businessInfoDocRef.set(
-            {
-                name: document.getElementById('name').value,
-                ein: document.getElementById('ein').value
-            },
-            { merge: true }
-        );
+    async function populatePastPayrollDropdown() {
+        console.log("in populate payroll drop");
+        const pastPayrollList = (await firebase.functions().httpsCallable('getPastPayrollPeriods')()).data;
     }
 </script>
-
-</html>
