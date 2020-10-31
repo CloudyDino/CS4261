@@ -41,9 +41,13 @@
     <main>
         <h2>Select a past payroll to view</h2>
 
-        <label for="pastPayrollDropdown">Past Payroll Period</label>
-        <select id="pastPayrollDropdown" name="pastPayrollDropdown" required>
-        </select>
+        <div id="selectPayrollPeriod">
+            <label for="pastPayrollDropdown">Past Payroll Period</label>
+            <select id="pastPayrollDropdown" name="pastPayrollDropdown" required>
+            </select>
+            <button id="viewButton" onclick="getPastPayroll()">View</button>
+        </div>
+        <div id="payrollInformation"></div>
     </main>
 </body>
 
@@ -61,7 +65,6 @@
                     .doc(user.uid)
                     .collection('pastPayrolls');
                 
-                console.log("calling populate payroll drop");
                 populatePastPayrollDropdown();
             } else {
                 window.location.href = 'index.html';
@@ -69,8 +72,101 @@
         });
     });
 
+    const emptyPastPayroll = "No previous payrolls ran";
     async function populatePastPayrollDropdown() {
-        console.log("in populate payroll drop");
         const pastPayrollList = (await firebase.functions().httpsCallable('getPastPayrollPeriods')()).data;
+        var select = document.getElementById("pastPayrollDropdown");
+        if (pastPayrollList.length > 0) {
+            document.getElementById("viewButton").disabled = false;
+            pastPayrollList.forEach(pastPayroll => {
+                var option = document.createElement('option');
+                option.text = option.value = pastPayroll;
+                select.add(option, 0);
+            });
+        } else {
+            var option = document.createElement('option');
+            option.text = option.value = emptyPastPayroll;
+            select.add(option, 0);
+            document.getElementById("viewButton").disabled = true;
+        }
+    }
+
+    async function getPastPayroll() {
+        var dropdown = document.getElementById("pastPayrollDropdown");
+        var payrollPeriod = dropdown.options[dropdown.selectedIndex].value; 
+        const pastPayrollInfo = (await firebase.functions().httpsCallable('getPastPayrollInfo')({payrollPeriod: payrollPeriod})).data;
+        if (pastPayrollInfo.authUrl) {
+            window.location.href = pastPayrollInfo.authUrl;
+        } else if (!pastPayrollInfo.employeeInfo || pastPayrollInfo.employeeInfo.length == 0) {
+            document.getElementById('payrollInformation').innerHTML = '<p>You have no employees</p>';
+        } else {
+            let table = `<table id="payrollTable">
+                            <tr>
+                                <th></th>
+                                <th colspan="3">Regular Pay</th>
+                                <th colspan="3">Overtime Pay</th>
+                                <th></th>
+                                <th colspan="5">Employee Taxes</th>
+                                <th colspan="6">Company Taxes</th>
+                                <th></th>
+                            </tr>
+                            <tr>
+                                <th>Name</th>
+                                <th>Regular Hours</th>
+                                <th>Regular Hourly Wage</th>
+                                <th>Gross Regular Pay</th>
+                                <th>Overtime Hours</th>
+                                <th>Overtime Hourly Wage</th>
+                                <th>Gross Overtime Pay</th>
+                                <th>Gross Pay</th>
+                                <th>Federal Income Tax</th>
+                                <th>Medicare Tax</th>
+                                <th>Social Security Tax</th>
+                                <th>State Income Tax</th>
+                                <th>Total Employee Taxes</th>
+                                <th>Federal Unemployment Tax</th>
+                                <th>Company Medicare Tax</th>
+                                <th>Company Social Security Tax</th>
+                                <th>State Unemployement Tax</th>
+                                <th>State Administration Assesment Tax</th>
+                                <th>Total Company Taxes</th>
+                                <th>Net Pay</th>
+                            </tr>`;
+            pastPayrollInfo.employeeInfo.forEach(employee => {
+                table += getPayrollTableRow(employee);
+            });
+            table += '</table>'
+
+            document.getElementById('payrollInformation').innerHTML = `${table}
+            <p>Total Salary to Pay: ${pastPayrollInfo.totalSalaryToPay.toFixed(2)}</p>
+            <p>Total Taxes to Pay: ${pastPayrollInfo.totalTaxesToPay.toFixed(2)}</p>
+            <p>Total Money Required: ${pastPayrollInfo.totalMoneyRequired.toFixed(2)}</p>`;
+        }
+
+    }
+
+    function getPayrollTableRow(employee) {
+        return `<tr>
+                    <td>${employee.name}</td>
+                    <td>${employee.regularHours.toFixed(2)}</td>
+                    <td>${employee.regularHourlyWage.toFixed(2)}</td>
+                    <td>${employee.grossRegularPay.toFixed(2)}</td>
+                    <td>${employee.overtimeHours.toFixed(2)}</td>
+                    <td>${employee.overtimeHourlyWage.toFixed(2)}</td>
+                    <td>${employee.grossOvertimePay.toFixed(2)}</td>
+                    <td>${employee.grossPay.toFixed(2)}</td>
+                    <td>${employee.federalWitholding.toFixed(2)}</td>
+                    <td>${(employee.medicareEmployee + employee.medicareEmployeeAddlTax).toFixed(2)}</td>
+                    <td>${employee.socialSecurtityEmployee.toFixed(2)}</td>
+                    <td>${employee.stateWitholding.toFixed(2)}</td>
+                    <td>${employee.totalEmployeeTaxes.toFixed(2)}</td>
+                    <td>${employee.federalUnemployment.toFixed(2)}</td>
+                    <td>${employee.medicareCompany.toFixed(2)}</td>
+                    <td>${employee.socialSecurtityCompany.toFixed(2)}</td>
+                    <td>${employee.stateUnemployment.toFixed(2)}</td>
+                    <td>${employee.stateAdminAssesment.toFixed(2)}</td>
+                    <td>${employee.totalCompanyTaxes.toFixed(2)}</td>
+                    <td>${employee.netPay.toFixed(2)}</td>
+                </tr>`;
     }
 </script>

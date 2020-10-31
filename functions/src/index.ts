@@ -313,7 +313,8 @@ function getEmployeePayrollInfo(employee: any, hours: number, days: number): Emp
   const grossPay = grossRegularPay + grossOvertimePay;
 
   const federalUnemployment = Math.min(7000, 0.006 * grossPay);
-  const federalWitholding = calculateFederalWitholding(grossPay, days, employee.w4Data);
+  const w4Data: W4Data =  employee.w4Data;
+  const federalWitholding = calculateFederalWitholding(grossPay, days, w4Data);
   const medicareCompany = 0.0145 * grossPay;
   const medicareEmployee = 0.0145 * grossPay;
   const medicareEmployeeAddlTax = 0.009 * Math.max(0, grossPay - 200000);
@@ -360,6 +361,7 @@ function getEmployeePayrollInfo(employee: any, hours: number, days: number): Emp
     netPay: netPay
   };
 }
+
 
 export const updateGoogleApiAuthCredentials = functions.https.onCall(async (data: any, context: CallableContext) => {
   const uid = context.auth?.uid;
@@ -410,7 +412,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
         authUrl: url
       };
     }
-
+    
     let hoursPerEmployee: Map<string, number>;
     try {
       const calendarApi = await getCalendarApi(googleApiAuthCredentials, uid);
@@ -422,7 +424,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
         authUrl: url
       };
     }
-
+    
     const payrollInfo = new PayrollInfo();
 
     const employeeCollectionSnapshot = await db.collection('test').doc(uid).collection('employees').get();
@@ -446,24 +448,20 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
 });
 
 export const getPastPayrollPeriods = functions.https.onCall(async (data: any, context: CallableContext) => {
-  console.log("inside get past payroll periods list");
   const uid = context.auth?.uid;
   if (typeof uid === 'undefined') {
     return Promise.reject();
   }
-  console.log(uid);
+
   try {
 
     var pastPayrollsList: string[] = [];
     const pastPayrolls = await db.collection('test').doc(uid).collection('pastPayrolls').get();
-    console.log(pastPayrolls.size);
     if (!pastPayrolls.empty) {
       pastPayrolls.forEach(pastPayrollRef => {
-        console.log(pastPayrollRef.id);
         pastPayrollsList.push(pastPayrollRef.id);
       })
     }
-
     return pastPayrollsList;
   } catch (error) {
     console.log(error);
@@ -471,6 +469,59 @@ export const getPastPayrollPeriods = functions.https.onCall(async (data: any, co
   }
 });
 
-export const getPastPayroll = functions.https.onCall(async (data: any, context: CallableContext) => {
+function convertToEmployeeInfo(employee: any): EmployeeInfo {
+  const medicareEmployeeAddlTax = 0.009 * Math.max(0, employee.get("grossPay") - 200000);
+  return {
+    name: employee.get("name"),
+    regularHours: employee.get("regularHours"),
+    regularHourlyWage: employee.get("regularHourlyWage"),
+    grossRegularPay: employee.get("grossRegularPay"),
+    overtimeHours: employee.get("overtimeHours"),
+    overtimeHourlyWage: employee.get("overtimeHourlyWage"),
+    grossOvertimePay: employee.get("grossOvertimePay"),
+    grossPay: employee.get("grossPay"),
+    federalUnemployment: employee.get("federalUnemploymentTax"),
+    federalWitholding: employee.get("federalWitholding"),
+    medicareCompany: employee.get("companyMedicareTax"),
+    medicareEmployee: employee.get("medicareTax"),
+    medicareEmployeeAddlTax: medicareEmployeeAddlTax,
+    socialSecurtityCompany: employee.get("companySocialSecurityTax"),
+    socialSecurtityEmployee: employee.get("socialSecurityTax"),
+    stateWitholding: employee.get("stateWitholding"),
+    stateUnemployment: employee.get("stateUnemploymentTax"),
+    stateAdminAssesment: employee.get("stateAdminAssesmentTax"),
+    totalEmployeeTaxes: employee.get("totalEmployeeTaxes"),
+    totalCompanyTaxes: employee.get("totalCompanyTaxes"),
+    netPay: employee.get("netPay")
+  };
+}
 
+export const getPastPayrollInfo = functions.https.onCall(async (data: any, context: CallableContext) => {
+  const uid = context.auth?.uid;
+  if (typeof uid === 'undefined') {
+    console.log("uid: " + uid);
+    return Promise.reject();
+  }
+
+  try {
+    const payrollPeriod = data.payrollPeriod; 
+    const pastPayrollInfo = new PayrollInfo();
+    const employeesListSnapshot = await db.collection('test').doc(uid).collection('pastPayrolls').doc(payrollPeriod).collection("employeesList").get();
+    if (employeesListSnapshot.size !== 0) {
+      employeesListSnapshot.forEach(employeePayrollDocRef => {
+        //passing in employeePayrollDocRef.data doesn't work, results in name: data and all other fields are undefined
+        const employeePayrollData = convertToEmployeeInfo(employeePayrollDocRef);
+        pastPayrollInfo.employeeInfo.push(employeePayrollData);
+      });
+    }
+    
+    const pastPayrollDoc = await db.collection('test').doc(uid).collection('pastPayrolls').doc(payrollPeriod).get();
+    pastPayrollInfo.totalMoneyRequired = pastPayrollDoc.get("totalMoneyRequired");
+    pastPayrollInfo.totalSalaryToPay = pastPayrollDoc.get("totalSalary");
+    pastPayrollInfo.totalTaxesToPay = pastPayrollDoc.get("totalTaxes");
+    return pastPayrollInfo;
+  } catch (error) {
+    console.log(error);
+    return Promise.reject();
+  }
 });

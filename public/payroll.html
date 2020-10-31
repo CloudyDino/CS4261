@@ -112,7 +112,7 @@
     async function populateCalendarDropdown() {
         console.log("in populate calendar");
         let selections = "";
-        const calendarInfo = (await firebase.functions().httpsCallable('getCalcendars')()).data;
+        const calendarInfo = (await firebase.functions().httpsCallable('getCalendars')()).data;
         console.log("calendar info: " + calendarInfo);
         if (calendarInfo.authUrl) {
             window.location.href = calendarInfo.authUrl;
@@ -241,9 +241,12 @@
     }
 
     async function addToPastPayroll() {
-        const startDate = document.getElementById('payrollStartDate').value;
-        const endDate = document.getElementById('payrollEndDate').value;
-        var payrollRangeStr = startDate + " - " + endDate;
+        const startDate = new Date(document.getElementById('payrollStartDate').value);
+        const startDateStr = startDate.toDateString().substring(4);
+        //toDateString() => Wed Jul 28 1993, truncate to Jul 28 1993
+        const endDate = new Date(document.getElementById('payrollEndDate').value);
+        const endDateStr = endDate.toDateString().substring(4);
+        var payrollRangeStr = startDateStr + " - " + endDateStr;
         alert(payrollRangeStr);
         alert(employeePayrollRowList.length);
         employeePayrollRowList.forEach(employee => {
