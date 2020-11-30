@@ -70,6 +70,7 @@
         <div id="payrollInformation"></div>
         <button onclick="exportTableToExcel('payrollTable')">Export Excel</button>
         <button onclick="runPayroll()">Run</button>
+        <p id="payrollDone" style="visibility: hidden;">Done!</p>
     </main>
 
 </body>
@@ -235,9 +236,8 @@
     }
 
     function runPayroll() {
-        console.log("before");
         addToPastPayroll();
-        alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
+        document.getElementById("payrollDone").style.visibility = "visible";
     }
 
     async function addToPastPayroll() {
@@ -247,8 +247,6 @@
         const endDate = new Date(document.getElementById('payrollEndDate').value);
         const endDateStr = endDate.toDateString().substring(4);
         var payrollRangeStr = startDateStr + " - " + endDateStr;
-        alert(payrollRangeStr);
-        alert(employeePayrollRowList.length);
         employeePayrollRowList.forEach(employee => {
             pastPayrollsCollectionRef.doc(payrollRangeStr).collection("employeesList").doc(employee.name).set(employee);
         });
