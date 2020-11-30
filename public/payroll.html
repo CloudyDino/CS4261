@@ -43,7 +43,8 @@
 
         <p>
             Make sure that your employees' hours are located as events in your <a
-                href="https://calendar.google.com/calendar/" target="_blank">Google Calendar</a>. Make sure that each event uses the full name of the employee.
+                href="https://calendar.google.com/calendar/" target="_blank">Google Calendar</a>. Make sure that each
+            event uses the full name of the employee.
         </p>
 
         <form id="payrollDateSelector" action="javascript:populatePayrollInformation()">
@@ -129,7 +130,7 @@
         return firebase.functions().httpsCallable('getPayrollInfo')({ calendarId: calendarId, startDate: startDate.toJSON(), endDate: endDate.toJSON() });
     }
 
-    
+
     async function populatePayrollInformation() {
         const calendarId = document.getElementById('calendarDropdown').value;
         const startDate = new Date(document.getElementById('payrollStartDate').value);
@@ -204,7 +205,7 @@
             companyMedicareTax: employee.medicareCompany,
             companySocialSecurityTax: employee.socialSecurtityCompany,
             stateUnemploymentTax: employee.stateUnemployment,
-            stateAdminAssesmentTax:employee.stateAdminAssesment,
+            stateAdminAssesmentTax: employee.stateAdminAssesment,
             totalCompanyTaxes: employee.totalCompanyTaxes,
             netPay: employee.netPay
         };
@@ -234,35 +235,45 @@
                 </tr>`;
     }
 
-    function runPayroll() {
-        console.log("before");
-        addToPastPayroll();
-        alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
+    async function runPayroll() {
+        console.log("Before running payroll");
+        const calendarId = document.getElementById('calendarDropdown').value;
+        const startDate = new Date(document.getElementById('payrollStartDate').value);
+        const endDate = new Date(document.getElementById('payrollEndDate').value);
+        const payrollRangeStr = getDateRangeString(startDate, endDate);
+        const payrollInfo = (await getPayrollInfo(calendarId, startDate, endDate)).data;
+
+        addToPastPayroll(payrollRangeStr, payrollInfo).then((result) => {
+            return firebase.functions().httpsCallable('runDirectDeposit')({ payrollRange: payrollRangeStr });
+        }).then((result) => {
+            alert("Complete");
+        }).catch((error) => {
+            console.log(error);
+        })
+        
+        
     }
 
-    async function addToPastPayroll() {
-        const startDate = new Date(document.getElementById('payrollStartDate').value);
-        const startDateStr = startDate.toDateString().substring(4);
-        //toDateString() => Wed Jul 28 1993, truncate to Jul 28 1993
-        const endDate = new Date(document.getElementById('payrollEndDate').value);
-        const endDateStr = endDate.toDateString().substring(4);
-        var payrollRangeStr = startDateStr + " - " + endDateStr;
+    async function addToPastPayroll(payrollRangeStr, payrollInfo) {
         alert(payrollRangeStr);
         alert(employeePayrollRowList.length);
         employeePayrollRowList.forEach(employee => {
             pastPayrollsCollectionRef.doc(payrollRangeStr).collection("employeesList").doc(employee.name).set(employee);
         });
 
-        const calendarId = document.getElementById('calendarDropdown').value;
-        const payrollInfo = (await getPayrollInfo(calendarId, startDate, endDate)).data;
-
         pastPayrollsCollectionRef.doc(payrollRangeStr).set(
             {
-            totalSalary: payrollInfo.totalSalaryToPay,
-            totalTaxes: payrollInfo.totalTaxesToPay,
-            totalMoneyRequired: payrollInfo.totalMoneyRequired},
-            {merge: true});
-    
+                totalSalary: payrollInfo.totalSalaryToPay,
+                totalTaxes: payrollInfo.totalTaxesToPay,
+                totalMoneyRequired: payrollInfo.totalMoneyRequired
+            },
+            { merge: true });
+    }
+
+    function getDateRangeString(startDate, endDate) {
+        const startDateStr = startDate.toDateString().substring(4);
+        const endDateStr = endDate.toDateString().substring(4);
+        return startDateStr + " - " + endDateStr;
     }
 
     function selectDate() {
@@ -298,37 +309,37 @@
         document.getElementById('payrollStartDate').valueAsDate = firstDay;
         document.getElementById('payrollEndDate').valueAsDate = lastDay;
 
-    function exportTableToExcel(tableID, filename = '') {
-        var downloadLink;
-        var dataType = 'application/vnd.ms-excel';
-        var tableSelect = document.getElementById(tableID);
-        var tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
+        function exportTableToExcel(tableID, filename = '') {
+            var downloadLink;
+            var dataType = 'application/vnd.ms-excel';
+            var tableSelect = document.getElementById(tableID);
+            var tableHTML = tableSelect.outerHTML.replace(/ /g, '%20');
 
-        // Specify file name
-        filename = filename ? filename + '.xls' : 'excel_data.xls';
+            // Specify file name
+            filename = filename ? filename + '.xls' : 'excel_data.xls';
 
-        // Create download link element
-        downloadLink = document.createElement("a");
+            // Create download link element
+            downloadLink = document.createElement("a");
 
-        document.body.appendChild(downloadLink);
+            document.body.appendChild(downloadLink);
 
-        if (navigator.msSaveOrOpenBlob) {
-            var blob = new Blob(['\ufeff', tableHTML], {
-                type: dataType
-            });
-            navigator.msSaveOrOpenBlob(blob, filename);
-        } else {
-            // Create a link to the file
-            downloadLink.href = 'data:' + dataType + ', ' + tableHTML;
+            if (navigator.msSaveOrOpenBlob) {
+                var blob = new Blob(['\ufeff', tableHTML], {
+                    type: dataType
+                });
+                navigator.msSaveOrOpenBlob(blob, filename);
+            } else {
+                // Create a link to the file
+                downloadLink.href = 'data:' + dataType + ', ' + tableHTML;
 
-            // Setting the file name
-            downloadLink.download = filename;
+                // Setting the file name
+                downloadLink.download = filename;
 
-            //triggering the function
-            downloadLink.click();
+                //triggering the function
+                downloadLink.click();
+            }
         }
     }
-}
 </script>
 
 </html>
