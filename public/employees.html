@@ -229,7 +229,7 @@
             employeesCollectionRef.doc(employeeDocRefId).onSnapshot((snapshot) => {
                 console.log(snapshot.data().name)
 
-                let editNoteForm = ` <form id="updateEmployeeForm" action="javascript:editNotesSubmit('${employeeDocRefId}')">
+                let editNoteForm = `<form id="updateEmployeeNotes" action="javascript:editNotesSubmit('${employeeDocRefId}')">
                                     <label for="notes">Notes:</label><br>
                                     <input type="text" name="notes" id="editNote" value="${snapshot.data().notes}""><br>
                                     <input type="submit" value="Update">
@@ -239,7 +239,7 @@
                 });
     }
 
-    function editNotesSubmit(employeeDocRefId){
+    async function editNotesSubmit(employeeDocRefId){
         console.log("hi")
         newNotes = document.getElementById("editNote").value;
         updates = {
@@ -247,7 +247,7 @@
             
         };
 
-        employeesCollectionRef.doc(employeeDocRefId).update(updates);
+        res = await employeesCollectionRef.doc(employeeDocRefId).update(updates);
         document.getElementById("editNotes").innerHTML = ``;
     }
 
@@ -301,10 +301,10 @@
                         </form>`;
             document.getElementById("editEmployee").innerHTML = editForm;
         });
-        // employeesCollectionRef.doc(employeeDocRefId).update({name: document.getElementById("updateEmployee").name.value()})
+        
     }
 
-    function editEmployeeSubmit(employeeDocRefId) {
+    async function editEmployeeSubmit(employeeDocRefId) {
         console.log("hi")
         newName = document.getElementById("editName").value;
         newEmail = document.getElementById("editEmail").value;
@@ -329,7 +329,7 @@
             }
         };
 
-        employeesCollectionRef.doc(employeeDocRefId).update(updates);
+        res = await employeesCollectionRef.doc(employeeDocRefId).update(updates);
         document.getElementById("editEmployee").innerHTML = ``;
     }
     
