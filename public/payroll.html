@@ -236,6 +236,7 @@
     }
 
     async function runPayroll() {
+        const calendarId = document.getElementById('calendarDropdown').value;
         const startDate = new Date(document.getElementById('payrollStartDate').value);
         const endDate = new Date(document.getElementById('payrollEndDate').value);
         const endDateStr = endDate.toDateString().substring(4);
