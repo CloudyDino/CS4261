@@ -17,24 +17,26 @@
 </head>
 
 <body>
-    <header>
-        <a href="index.html">
-            <div id="logo">
-                <img src="/images/logo.png" alt="logo">
-                <h1>Paysense</h1>
-            </div>
-        </a>
-        <nav>
-            <ul>
-                <li><a href="/dashboard.html">Dashboard</a></li>
-                <li><a href="https://calendar.google.com/calendar" target="_blank">Calendar</a></li>
-                <li><a href="/employees.html">Manage Employees</a></li>
-                <li><a href="/payroll.html">Run Payroll</a></li>
-                <li><a href="#">Past Payrolls</a></li>
-            </ul>
-        </nav>
-        <button onclick="logout()">Log Out</button>
-    </header>
+    <h1>Run Payroll</h1>
+    <nav>
+        <ul>
+            <a href="/dashboard.html">
+                <li>Dashboard</li>
+            </a>
+            <a href="https://calendar.google.com/calendar/" target="_blank">
+                <li>Calendar</li>
+            </a>
+            <a href="/employees.html">
+                <li>Manage Employees</li>
+            </a>
+            <a href="/payroll.html">
+                <li>Run Payroll</li>
+            </a>
+            <a href="/past_payrolls.html">
+                <li>Past Payrolls</li>
+            </a>
+        </ul>
+    </nav>
 
     <main>
         <h2>Run Payroll</h2>
@@ -73,9 +75,19 @@
 </body>
 
 <script>
+    let pastPayrollsCollectionRef;
+
     document.addEventListener('DOMContentLoaded', function () {
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
+
+                firebase.functions().useFunctionsEmulator('http://localhost:5001');
+
+                pastPayrollsCollectionRef = firebase.firestore()
+                    .collection('test')
+                    .doc(user.uid)
+                    .collection('pastPayrolls');
+
                 const queryString = window.location.search;
                 const urlParams = new URLSearchParams(queryString);
                 const authCode = urlParams.get('code');
@@ -98,8 +110,10 @@
     }
 
     async function populateCalendarDropdown() {
+        console.log("in populate calendar");
         let selections = "";
         const calendarInfo = (await firebase.functions().httpsCallable('getCalendars')()).data;
+        console.log("calendar info: " + calendarInfo);
         if (calendarInfo.authUrl) {
             window.location.href = calendarInfo.authUrl;
         } else {
@@ -115,6 +129,7 @@
         return firebase.functions().httpsCallable('getPayrollInfo')({ calendarId: calendarId, startDate: startDate.toJSON(), endDate: endDate.toJSON() });
     }
 
+    
     async function populatePayrollInformation() {
         const calendarId = document.getElementById('calendarDropdown').value;
         const startDate = new Date(document.getElementById('payrollStartDate').value);
@@ -169,7 +184,32 @@
         }
     }
 
+    var employeePayrollRowList = new Array();
     function getPayrollTableRow(employee) {
+        var employeeRow = {
+            name: employee.name,
+            regularHours: employee.regularHours,
+            regularHourlyWage: employee.regularHourlyWage,
+            grossRegularPay: employee.grossRegularPay,
+            overtimeHours: employee.overtimeHours,
+            overtimeHourlyWage: employee.overtimeHourlyWage,
+            grossOvertimePay: employee.grossOvertimePay,
+            grossPay: employee.grossPay,
+            federalWitholding: employee.federalWitholding,
+            medicareTax: (employee.medicareEmployee + employee.medicareEmployeeAddlTax),
+            socialSecurityTax: employee.socialSecurtityEmployee,
+            stateWitholding: employee.stateWitholding,
+            totalEmployeeTaxes: employee.totalEmployeeTaxes,
+            federalUnemploymentTax: employee.federalUnemployment,
+            companyMedicareTax: employee.medicareCompany,
+            companySocialSecurityTax: employee.socialSecurtityCompany,
+            stateUnemploymentTax: employee.stateUnemployment,
+            stateAdminAssesmentTax:employee.stateAdminAssesment,
+            totalCompanyTaxes: employee.totalCompanyTaxes,
+            netPay: employee.netPay
+        };
+        employeePayrollRowList.push(employeeRow);
+
         return `<tr>
                     <td>${employee.name}</td>
                     <td>${employee.regularHours.toFixed(2)}</td>
@@ -195,7 +235,34 @@
     }
 
     function runPayroll() {
+        console.log("before");
+        addToPastPayroll();
         alert("Not implemented yet. We'd want to call a Firebase Function and then do a direct deposit.");
+    }
+
+    async function addToPastPayroll() {
+        const startDate = new Date(document.getElementById('payrollStartDate').value);
+        const startDateStr = startDate.toDateString().substring(4);
+        //toDateString() => Wed Jul 28 1993, truncate to Jul 28 1993
+        const endDate = new Date(document.getElementById('payrollEndDate').value);
+        const endDateStr = endDate.toDateString().substring(4);
+        var payrollRangeStr = startDateStr + " - " + endDateStr;
+        alert(payrollRangeStr);
+        alert(employeePayrollRowList.length);
+        employeePayrollRowList.forEach(employee => {
+            pastPayrollsCollectionRef.doc(payrollRangeStr).collection("employeesList").doc(employee.name).set(employee);
+        });
+
+        const calendarId = document.getElementById('calendarDropdown').value;
+        const payrollInfo = (await getPayrollInfo(calendarId, startDate, endDate)).data;
+
+        pastPayrollsCollectionRef.doc(payrollRangeStr).set(
+            {
+            totalSalary: payrollInfo.totalSalaryToPay,
+            totalTaxes: payrollInfo.totalTaxesToPay,
+            totalMoneyRequired: payrollInfo.totalMoneyRequired},
+            {merge: true});
+    
     }
 
     function selectDate() {
@@ -230,7 +297,6 @@
         }
         document.getElementById('payrollStartDate').valueAsDate = firstDay;
         document.getElementById('payrollEndDate').valueAsDate = lastDay;
-    }
 
     function exportTableToExcel(tableID, filename = '') {
         var downloadLink;
@@ -262,6 +328,7 @@
             downloadLink.click();
         }
     }
+}
 </script>
 
 </html>
