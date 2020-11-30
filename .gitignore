@@ -66,4 +66,4 @@ node_modules/
 
 # Google Developer Config
 
-functions/**/credentials.json
+functions/**/*credentials.json

@@ -1,8 +1,10 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
+import * as plaid from 'plaid';
 import { CallableContext } from 'firebase-functions/lib/providers/https';
 import { google, calendar_v3, Auth } from 'googleapis';
 import googleCredentials from './credentials.json';
+import plaidCredentials from './plaid_credentials.json';
 
 import { EmployeeInfo, PayrollInfo, W4Data, StateTaxData } from "./objects";
 
@@ -23,13 +25,22 @@ const url = oAuth2Client.generateAuthUrl({
   ]
 });
 
+const plaidClient = new plaid.Client({
+  clientID: plaidCredentials.PLAID_CLIENT_ID,
+  secret: plaidCredentials.PLAID_SECRET,
+  env: plaid.environments[plaidCredentials.PLAID_ENV],
+  options: {
+    version: '2020-09-14',
+  },
+});
+
 async function getCalendarApi(credentials: Auth.Credentials, uid: string) {
   oAuth2Client.on('tokens', (tokens) => {
     if (tokens.refresh_token) {
-        db.collection('test').doc(uid).set(
-          { googleApiAuthCredentials: tokens },
-          { merge: true }
-        ).catch(console.log);
+      db.collection('test').doc(uid).set(
+        { googleApiAuthCredentials: tokens },
+        { merge: true }
+      ).catch(console.log);
     }
   });
 
@@ -74,7 +85,7 @@ export const getCalendars = functions.https.onCall(async (data: any, context: Ca
       };
     }
 
-    
+
 
     return {
       default: userSnapshot.data()?.defaultCalendarId ?? "",
@@ -313,7 +324,7 @@ function getEmployeePayrollInfo(employee: any, hours: number, days: number): Emp
   const grossPay = grossRegularPay + grossOvertimePay;
 
   const federalUnemployment = Math.min(7000, 0.006 * grossPay);
-  const w4Data: W4Data =  employee.w4Data;
+  const w4Data: W4Data = employee.w4Data;
   const federalWitholding = calculateFederalWitholding(grossPay, days, w4Data);
   const medicareCompany = 0.0145 * grossPay;
   const medicareEmployee = 0.0145 * grossPay;
@@ -412,7 +423,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
         authUrl: url
       };
     }
-    
+
     let hoursPerEmployee: Map<string, number>;
     try {
       const calendarApi = await getCalendarApi(googleApiAuthCredentials, uid);
@@ -424,7 +435,7 @@ export const getPayrollInfo = functions.https.onCall(async (data: any, context: 
         authUrl: url
       };
     }
-    
+
     const payrollInfo = new PayrollInfo();
 
     const employeeCollectionSnapshot = await db.collection('test').doc(uid).collection('employees').get();
@@ -469,6 +480,83 @@ export const getPastPayrollPeriods = functions.https.onCall(async (data: any, co
   }
 });
 
+export const runDirectDeposit = functions.https.onCall(async (data: any, context: CallableContext) => {
+  // Authentication / user information is automatically added to the request.
+  const uid = context.auth?.uid;
+  if (typeof uid === 'undefined') {
+    return Promise.reject();
+  }
+
+  // Data passed in by client
+  const payrollRange = data.payrollRange;
+  try {
+    const totalMoneyRequired = (await db.collection('test')
+      .doc(uid)
+      .collection('pastPayrolls')
+      .doc(payrollRange)
+      .get())
+      ?.data()
+      ?.totalMoneyRequired;
+
+    bankTransfer(totalMoneyRequired);
+
+    return Promise.resolve("Success");
+  } catch (error) {
+    console.error(error);
+    return Promise.reject();
+  }
+});
+
+function bankTransfer(amount: number) {
+  plaidClient.createPaymentRecipient(
+    'Harry Potter',
+    'GB33BUKB20201555555555',
+    {
+      street: ['4 Privet Drive'],
+      city: 'Little Whinging',
+      postal_code: '11111',
+      country: 'GB',
+    },
+    function (error, createRecipientResponse) {
+      const recipientId = createRecipientResponse.recipient_id;
+
+      plaidClient.createPayment(
+        recipientId,
+        'payment_ref',
+        {
+          value: 12.34,
+          currency: 'GBP',
+        },
+        function (error, createPaymentResponse) {
+          const paymentId = createPaymentResponse.payment_id;
+          plaidClient.createLinkToken(
+            {
+              user: {
+                // This should correspond to a unique id for the current user.
+                client_user_id: 'user-id',
+              },
+              client_name: 'Plaid Sandbox',
+              products: ['transactions'],
+              country_codes: ['US'],
+              language: 'en',
+              redirect_uri: '',
+              payment_initiation: {
+                payment_id: paymentId,
+              },
+            },
+            function (error, createTokenResponse) {
+              if (error != null) {
+                return error
+              }
+              return createTokenResponse;
+            },
+          );
+        },
+      );
+    },
+  );
+}
+
 function convertToEmployeeInfo(employee: any): EmployeeInfo {
   const medicareEmployeeAddlTax = 0.009 * Math.max(0, employee.get("grossPay") - 200000);
   return {
@@ -504,7 +592,7 @@ export const getPastPayrollInfo = functions.https.onCall(async (data: any, conte
   }
 
   try {
-    const payrollPeriod = data.payrollPeriod; 
+    const payrollPeriod = data.payrollPeriod;
     const pastPayrollInfo = new PayrollInfo();
     const employeesListSnapshot = await db.collection('test').doc(uid).collection('pastPayrolls').doc(payrollPeriod).collection("employeesList").get();
     if (employeesListSnapshot.size !== 0) {
@@ -514,7 +602,7 @@ export const getPastPayrollInfo = functions.https.onCall(async (data: any, conte
         pastPayrollInfo.employeeInfo.push(employeePayrollData);
       });
     }
-    
+
     const pastPayrollDoc = await db.collection('test').doc(uid).collection('pastPayrolls').doc(payrollPeriod).get();
     pastPayrollInfo.totalMoneyRequired = pastPayrollDoc.get("totalMoneyRequired");
     pastPayrollInfo.totalSalaryToPay = pastPayrollDoc.get("totalSalary");
