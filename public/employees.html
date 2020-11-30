@@ -45,7 +45,7 @@
             <input type="text" name="name" id="name" required><br>
 
             <label for="notes">Notes:</label><br>
-            <input type="text" name="notes" id="notes" required><br>
+            <input type="text" name="notes" id="notes"><br>
 
 
             <label for="email">Email:</label><br>
@@ -63,7 +63,8 @@
             </select><br>
 
             <div id="w4Info">
-                <p>Take a look at the W4 form for this information which can be found <a href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank">here</a>.</p>
+                <p>Take a look at the W4 form for this information which can be found <a
+                        href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank">here</a>.</p>
 
                 <label for="w4twoJobs">W4 Step 2c checkbox:</label><br>
                 <input type="radio" id="w4twoJobsYes" name="w4twoJobs" value="yes" required>
@@ -88,14 +89,18 @@
             <input type="checkbox" name="stateTaxExempt" id="stateTaxExempt" onclick="toggleStateTax()"><br>
 
             <div id="stateTaxInfo">
-                <p>Take a look at the G4 form for this information which can be found <a href="https://dor.georgia.gov/sites/dor.georgia.gov/files/related_files/document/TSD/Form/TSD_Employees_Withholding_Allowance_Certificate_G-4.pdf" target="_blank">here</a>.</p>
+                <p>Take a look at the G4 form for this information which can be found <a
+                        href="https://dor.georgia.gov/sites/dor.georgia.gov/files/related_files/document/TSD/Form/TSD_Employees_Withholding_Allowance_Certificate_G-4.pdf"
+                        target="_blank">here</a>.</p>
 
                 <label for="stateFilingStatus">State Filing Status (line 3):</label><br>
                 <select id="stateFilingStatus" name="stateFilingStatus" required><br>
                     <option value="single">Single</option>
                     <option value="marriedFilingSeparately">Married Filing Separately</option>
-                    <option value="marriedFilingJointly-bothSpousesWorking">Married Filing Jointly, both spouses working</option>
-                    <option value="marriedFilingJointly-oneSpouseWorking">Married Filing Jointly, one spouse working</option>
+                    <option value="marriedFilingJointly-bothSpousesWorking">Married Filing Jointly, both spouses working
+                    </option>
+                    <option value="marriedFilingJointly-oneSpouseWorking">Married Filing Jointly, one spouse working
+                    </option>
                     <option value="headOfHousehold">Head of Household</option>
                 </select><br>
 
@@ -110,14 +115,18 @@
                 <input type="number" name="stateDependentAllowance" id="stateDependentAllowance" required><br>
 
                 <label for="stateAdditionalWitholding">Additional Witholding (line 6):</label><br>
-                <input type="number" name="stateAdditionalWitholding" id="stateAdditionalWitholding" min="0" step="0.01" required><br>
+                <input type="number" name="stateAdditionalWitholding" id="stateAdditionalWitholding" min="0" step="0.01"
+                    required><br>
             </div>
 
             <input type="submit" value="Add Employee">
         </form>
 
         <div id="employeesInformation"></div>
+
         <div id="editNotes"></div>
+
+        <div id="editEmployee"></div>
 
     </main>
 
@@ -149,6 +158,7 @@
             } else {
                 let table = `<table>
                                 <tr>
+                                    <th></th>
                                     <th></th>
                                     <th>Name</th>
                                     <th>Update Notes</th>
@@ -199,6 +209,7 @@
     function getEmployeeTableRow(employeeDocRefId, name, notes, email, hourlyWage, w4filingStatus, stateTaxExempt) {
         return `<tr>
                     <td><button onclick="deleteEmployee('${employeeDocRefId}')">Delete</button></td>
+                    <td><button onclick="editEmployeeForm('${employeeDocRefId}')">Edit</button></td>
                     <td>${name}</td>
                     <td><button onclick="editNotes('${employeeDocRefId}')">Update</button></td>
                     <td>${notes}</td>
@@ -214,18 +225,18 @@
     }
 
     function editNotes(employeeDocRefId) {
-        console.log("Edit")
-        employeesCollectionRef.doc(employeeDocRefId).onSnapshot((snapshot) => {
-            console.log(snapshot.data().name)
+        console.log("Edit Notes")
+            employeesCollectionRef.doc(employeeDocRefId).onSnapshot((snapshot) => {
+                console.log(snapshot.data().name)
 
-            let editNoteForm = ` <form id="updateEmployeeForm" action="javascript:editNotesSubmit('${employeeDocRefId}')">
-                            <label for="notes">Notes:</label><br>
-                            <input type="text" name="notes" id="editNote" value="${snapshot.data().notes}""><br>
-                            <input type="submit" value="Update">
-                            <button onClick=editNotesCancel()>Cancel</button>
-                        </form>`;
-            document.getElementById("editNotes").innerHTML = editNoteForm;
-        });
+                let editNoteForm = ` <form id="updateEmployeeForm" action="javascript:editNotesSubmit('${employeeDocRefId}')">
+                                    <label for="notes">Notes:</label><br>
+                                    <input type="text" name="notes" id="editNote" value="${snapshot.data().notes}""><br>
+                                    <input type="submit" value="Update">
+                                    <button onClick=editNotesCancel()>Cancel</button>
+                                </form>`;
+                document.getElementById("editNotes").innerHTML = editNoteForm;
+                });
     }
 
     function editNotesSubmit(employeeDocRefId){
@@ -239,8 +250,91 @@
         employeesCollectionRef.doc(employeeDocRefId).update(updates);
         document.getElementById("editNotes").innerHTML = ``;
     }
+
     function editNotesCancel() {
         document.getElementById("editNotes").innerHTML = ``;
+    }
+
+    function editEmployeeForm(employeeDocRefId) { 
+        console.log("Edit Employee")
+        employeesCollectionRef.doc(employeeDocRefId).onSnapshot((snapshot) => {
+            console.log(snapshot.data().name) 
+
+            let editForm = ` <form id="updateEmployeeForm" action="javascript:editEmployeeSubmit('${employeeDocRefId}')">
+                            <label for="name">Name:</label><br>
+                            <input type="text" name="name" id="editName" value="${snapshot.data().name}""><br>
+
+                            <label for="email">Email:</label><br>
+                            <input type="email" name="editEmail" id="editEmail" value="${snapshot.data().email}"><br>
+
+                            <label for="hourlyWage">Hourly Wage:</label><br>
+                            <input type="number" name="hourlyWage" id="editHourlyWage" min="0" step="0.01" value="${snapshot.data().hourlyWage}"><br>
+
+                            <label for="w4filingStatus">W4 Filing Status:(Make Sure This is Accurate)</label><br>
+                            <select id="editW4filingStatus" name="w4filingStatus" required><br>
+                                <option value="single">Single</option>
+                                <option value="marriedFilingSeparately">Married Filing Separately</option>
+                                <option value="marriedFilingJointly">Married Filing Jointly</option>
+                                <option value="headOfHousehold">Head of Household</option>
+                            </select><br>
+
+                            <label for="w4twoJobs">W4 Step 2c checkbox:(Make Sure This is Accurate)</label><br>
+                            <input type="radio" id="editW4twoJobsYes" name="w4twoJobs" value="yes" required>
+                            <label for="w4twoJobsYes">Yes</label><br>
+                            <input type="radio" id="editW4twoJobsNo" name="w4twoJobs" value="no" required>
+                            <label for="w4twoJobsNo">No</label><br>
+
+                            <label for="w4step3">W4 Step 3:</label><br>
+                            <input type="number" name="w4step3" id="editW4step3" min="0" step="0.01" value="${snapshot.data().w4Data.step3}"><br>
+
+                            <label for="w4step4a">W4 Step 4a:</label><br>
+                            <input type="number" name="w4step4a" id="editW4step4a" min="0" step="0.01" value="${snapshot.data().w4Data.step4a}"><br>
+
+                            <label for="w4step4b">W4 Step 4b:</label><br>
+                            <input type="number" name="w4step4b" id="editW4step4b" min="0" step="0.01" value="${snapshot.data().w4Data.step4b}"><br>
+
+                            <label for="w4step4c">W4 Step 4c:</label><br>
+                            <input type="number" name="w4step4c" id="editW4step4c" min="0" step="0.01" value="${snapshot.data().w4Data.step4c}"><br>
+
+                            <input type="submit" value="Update">
+                            <button onClick=editEmployeeCancel()>Cancel</button>
+                        </form>`;
+            document.getElementById("editEmployee").innerHTML = editForm;
+        });
+        // employeesCollectionRef.doc(employeeDocRefId).update({name: document.getElementById("updateEmployee").name.value()})
+    }
+
+    function editEmployeeSubmit(employeeDocRefId) {
+        console.log("hi")
+        newName = document.getElementById("editName").value;
+        newEmail = document.getElementById("editEmail").value;
+        newHourlyWage = document.getElementById("editHourlyWage").value;
+        newW4filingStatus = document.getElementById("editW4filingStatus").value;
+        newW4TwoJobs = document.getElementById("editW4twoJobsYes").checked;
+        newW4Step3 = document.getElementById("editW4step3").value;
+        newW44a = document.getElementById("editW4step4a").value;
+        newW44b = document.getElementById("editW4step4b").value;
+        newW44c = document.getElementById("editW4step4c").value;
+        updates = {
+            name:newName,
+            email:newEmail,
+            hourlyWage:newHourlyWage,
+            w4Data: {
+                filingStatus: newW4filingStatus,
+                twoJobs: newW4TwoJobs,
+                step3: newW4Step3,
+                step4a: newW44a,
+                step4b: newW44b,
+                step4c: newW44c
+            }
+        };
+
+        employeesCollectionRef.doc(employeeDocRefId).update(updates);
+        document.getElementById("editEmployee").innerHTML = ``;
+    }
+    
+    function editEmployeeCancel() {
+        document.getElementById("editEmployee").innerHTML = ``;
     }
 
     function toggleStateTax() {
