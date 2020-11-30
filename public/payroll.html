@@ -112,7 +112,6 @@
     }
 
     async function populateCalendarDropdown() {
-        console.log("in populate calendar");
         let selections = "";
         const calendarInfo = (await firebase.functions().httpsCallable('getCalendars')()).data;
         console.log("calendar info: " + calendarInfo);
@@ -236,15 +235,15 @@
                 </tr>`;
     }
 
-    function runPayroll() {
+    async function runPayroll() {
         const startDate = new Date(document.getElementById('payrollStartDate').value);
         const endDate = new Date(document.getElementById('payrollEndDate').value);
         const endDateStr = endDate.toDateString().substring(4);
-        var payrollRangeStr = startDateStr + " - " + endDateStr;
         const payrollRangeStr = getDateRangeString(startDate, endDate);
-        const payrollInfo = (await getPayrollInfo(calendarId, startDate, endDate)).data;
-
-        addToPastPayroll(payrollRangeStr, payrollInfo).then((result) => {
+        getPayrollInfo(calendarId, startDate, endDate).then((result) => {
+            const payrollInfo = result.data;
+            return addToPastPayroll(payrollRangeStr, payrollInfo);
+        }).then((result) => {
             return firebase.functions().httpsCallable('runDirectDeposit')({ payrollRange: payrollRangeStr });
         }).then((result) => {
             document.getElementById("payrollDone").style.visibility = "visible";
