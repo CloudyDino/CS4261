@@ -306,13 +306,13 @@
         console.log("hi")
         newName = document.getElementById("editName").value;
         newEmail = document.getElementById("editEmail").value;
-        newHourlyWage = document.getElementById("editHourlyWage").value;
+        newHourlyWage = parseFloat(document.getElementById("editHourlyWage").value);
         newW4filingStatus = document.getElementById("editW4filingStatus").value;
         newW4TwoJobs = document.getElementById("editW4twoJobsYes").checked;
-        newW4Step3 = document.getElementById("editW4step3").value;
-        newW44a = document.getElementById("editW4step4a").value;
-        newW44b = document.getElementById("editW4step4b").value;
-        newW44c = document.getElementById("editW4step4c").value;
+        newW4Step3 = parseFloat(document.getElementById("editW4step3").value);
+        newW44a = parseFloat(document.getElementById("editW4step4a").value);
+        newW44b = parseFloat(document.getElementById("editW4step4b").value);
+        newW44c = parseFloat(document.getElementById("editW4step4c").value);
         updates = {
             name:newName,
             email:newEmail,
