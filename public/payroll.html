@@ -47,6 +47,8 @@
             event uses the full name of the employee.
         </p>
 
+        <p>Video tutorial on how to use the Google Calendar for scheduling employees: <a href="https://youtu.be/Rm6tq5AzsaU" target="_blank">click here</a></p>
+
         <form id="payrollDateSelector" action="javascript:populatePayrollInformation()">
             <label for="calendarDropdown">Calendar</label>
             <select id="calendarDropdown" name="calendarDropdown" required>
@@ -82,6 +84,9 @@
     document.addEventListener('DOMContentLoaded', function () {
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
+
+                firebase.functions().useFunctionsEmulator('http://localhost:5001');
+
                 pastPayrollsCollectionRef = firebase.firestore()
                     .collection('test')
                     .doc(user.uid)
@@ -233,7 +238,6 @@
     }
 
     async function runPayroll() {
-        const calendarId = document.getElementById('calendarDropdown').value;
         const startDate = new Date(document.getElementById('payrollStartDate').value);
         const endDate = new Date(document.getElementById('payrollEndDate').value);
         const endDateStr = endDate.toDateString().substring(4);
