@@ -57,9 +57,6 @@
     document.addEventListener('DOMContentLoaded', function () {
         firebase.auth().onAuthStateChanged((user) => {
             if (user) {
-
-                firebase.functions().useFunctionsEmulator('http://localhost:5001');
-
                 pastPayrollsCollectionRef = firebase.firestore()
                     .collection('test')
                     .doc(user.uid)

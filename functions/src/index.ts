@@ -466,7 +466,7 @@ export const getPastPayrollPeriods = functions.https.onCall(async (data: any, co
 
   try {
 
-    var pastPayrollsList: string[] = [];
+    const pastPayrollsList: string[] = [];
     const pastPayrolls = await db.collection('test').doc(uid).collection('pastPayrolls').get();
     if (!pastPayrolls.empty) {
       pastPayrolls.forEach(pastPayrollRef => {
@@ -545,7 +545,7 @@ function bankTransfer(amount: number) {
               },
             },
             function (error, createTokenResponse) {
-              if (error != null) {
+              if (error !== null) {
                 return error
               }
               return createTokenResponse;
