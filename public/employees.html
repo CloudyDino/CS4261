@@ -83,8 +83,9 @@
                 <input type="number" name="w4step4c" id="w4step4c" min="0" step="0.01" required><br>
             </div>
 
-            <label for="stateTaxExempt">Exempt From State Tax: </label>
-            <input type="checkbox" name="stateTaxExempt" id="stateTaxExempt" onclick="toggleStateTax()"><br>
+            <!-- TODO: Make state tax exemption work -->
+            <label hidden for="stateTaxExempt">Exempt From State Tax: </label>
+            <input hidden type="checkbox" name="stateTaxExempt" id="stateTaxExempt" onclick="toggleStateTax()"><br>
 
             <div id="stateTaxInfo">
                 <p>Take a look at the G4 form for this information which can be found <a
